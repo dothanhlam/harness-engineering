@@ -141,6 +141,10 @@ func runCoreHarnessLoop(devAgentCmd string, cfg Config) {
 			"--add-dir", "./workspace",
 			"--add-dir", "./memory",
 		)
+		// Pass model via environment variable — agy reads ANTIGRAVITY_MODEL at startup
+		if cfg.Dev.ModelName != "" {
+			cmdDev.Env = append(os.Environ(), "ANTIGRAVITY_MODEL="+cfg.Dev.ModelName)
+		}
 		_ = cmdDev.Run()
 
 		// PHASE 2: QA VERIFICATION (TEST SUITE)
@@ -372,6 +376,7 @@ type BAConfig struct {
 
 type DevConfig struct {
 	Agent     string `json:"agent"`
+	ModelName string `json:"model_name"`
 	MCPConfig string `json:"mcp_config"`
 }
 
@@ -396,6 +401,7 @@ func main() {
 		},
 		Dev: DevConfig{
 			Agent:     "agy",
+			ModelName: "gemini-2.5-flash",
 			MCPConfig: "",
 		},
 		DevOps: DevOpsConfig{
@@ -414,6 +420,7 @@ func main() {
 	epicFlag := flag.String("epic", "", "Path to a directory containing epic requirements for decomposition")
 	baAgentCmd := flag.String("ba-agent", cfg.BA.Agent, "Command/binary to execute for Phase 0 Business Analyst")
 	devAgentCmd := flag.String("dev-agent", cfg.Dev.Agent, "Command/binary to execute for Phase 1 Developer Coding")
+	devAgentModel := flag.String("dev-model", cfg.Dev.ModelName, "Model name for the Dev agent (sets ANTIGRAVITY_MODEL env var)")
 	devOpsAgent := flag.String("devops-agent", cfg.DevOps.Agent, "CLI agent to execute for Phase 3 DevOps documentation (e.g., ollama)")
 	devOpsModel := flag.String("devops-model", cfg.DevOps.ModelName, "Model name to execute for Phase 3 DevOps documentation")
 	flag.Parse()
@@ -424,11 +431,12 @@ func main() {
 
 	fmt.Printf("⚙️  Configuration:\n")
 	fmt.Printf("   - BA Agent:    %s\n", *baAgentCmd)
-	fmt.Printf("   - Dev Agent:   %s\n", *devAgentCmd)
+	fmt.Printf("   - Dev Agent:   %s (model: %s)\n", *devAgentCmd, *devAgentModel)
 	fmt.Printf("   - DevOps Agent: %s\n", *devOpsAgent)
 	fmt.Printf("   - DevOps Model: %s\n", *devOpsModel)
 
 	if *epicFlag != "" {
+		cfg.Dev.ModelName = *devAgentModel
 		ExecuteBigEpic(*epicFlag, *devAgentCmd, cfg)
 		return
 	}
@@ -466,5 +474,6 @@ Output ONLY the strict markdown checklist content. Do not include any chat fille
 		fmt.Println("✅ Successfully generated memory/definitions_of_done.md.")
 	}
 
+	cfg.Dev.ModelName = *devAgentModel
 	runCoreHarnessLoop(*devAgentCmd, cfg)
 }
