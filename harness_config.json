@@ -1,0 +1,15 @@
+{
+  "ba": {
+    "agent": "gemini",
+    "mcp_config": ".mcp/ba_notion.json"
+  },
+  "dev": {
+    "agent": "agy",
+    "mcp_config": ""
+  },
+  "devops": {
+    "agent": "ollama",
+    "model_name": "hermes3:8b",
+    "mcp_config": ".mcp/devops_linear.json"
+  }
+}

@@ -1,33 +1,31 @@
-# Definition of Done: Harness Engineering Landing Page
+# Definition of Done: Simple Gomoku (Go-moku) Game
 
-## 1. Project Initialization & Architecture
-- [ ] Initialize project using a modern framework (React/TypeScript or Go/Hugo as per project conventions).
-- [ ] Implement a clean, modular component architecture.
-- [ ] Configure ESLint and Prettier for code consistency.
-- [ ] Set up a responsive CSS framework or CSS-in-JS solution (Vanilla CSS preferred per core mandates).
+## 1. Core Game Logic & Engine
+- [ ] **Grid Implementation:** Scalable 15x15 board matrix initialization (standard Gomoku size).
+- [ ] **Move Validation:** Implementation of coordinate-based placement logic with collision detection (preventing overwriting existing stones).
+- [ ] **Win Condition Algorithm:** Optimized linear/diagonal scanning algorithm to detect exactly five consecutive stones of the same color (horizontal, vertical, diagonal).
+- [ ] **Turn Management:** Atomic state transitions between Black (Player 1) and White (Player 2) with turn-tracking.
+- [ ] **Draw Condition:** Logic to handle full-board scenarios where no win condition is met.
 
-## 2. Functional Requirements (Landing Page Content)
-- [ ] **Hero Section:** High-impact headline, sub-headline, and a clear Call to Action (CTA).
-- [ ] **About Us:** Technical overview of Harness Engineering's core services and expertise.
-- [ ] **Key Features/Services:** Grid or list view detailing engineering capabilities.
-- [ ] **Technical Stack/Expertise:** Visual representation of technologies used.
-- [ ] **Contact/Lead Generation:** Functional contact form or link to professional inquiry channel.
-- [ ] **Footer:** Copyright, links to social profiles, and basic navigation.
+## 2. Technical Architecture (Go/CLI)
+- [ ] **Domain Modeling:** Clear separation between Game Engine (logic) and User Interface (rendering).
+- [ ] **Concurrency Safety:** Ensure state mutations are thread-safe if handling asynchronous inputs.
+- [ ] **Error Handling:** Robust validation for out-of-bounds inputs and invalid move formats.
+- [ ] **State Management:** Immutable or strictly controlled state updates to facilitate move history or "undo" functionality.
 
-## 3. Technical & Performance Standards
-- [ ] **Responsive Design:** Fully functional and aesthetically pleasing on Mobile, Tablet, and Desktop (Breakpoints: 320px, 768px, 1024px, 1440px).
-- [ ] **Performance:** Achieve a Google Lighthouse score of 90+ for Performance, Accessibility, and Best Practices.
-- [ ] **SEO Optimization:** Correct usage of semantic HTML tags (H1, H2, alt text), meta titles, and descriptions.
-- [ ] **Asset Optimization:** All images optimized (WebP format where applicable) and lazy-loaded.
-- [ ] **Cross-Browser Compatibility:** Verified on Chrome, Firefox, Safari, and Edge.
+## 3. Interface & UX (Terminal/CLI)
+- [ ] **Board Rendering:** Dynamic CLI rendering of the board using ASCII/Unicode characters for clarity (e.g., `+`, `●`, `○`).
+- [ ] **Coordinate System:** Standard alphanumeric notation (e.g., A1-O15) or intuitive index-based input.
+- [ ] **Visual Feedback:** Clear indication of current player, last move made, and game status (Active, Win, Draw).
+- [ ] **Input Sanitization:** Regex-based validation for user input strings to prevent runtime crashes.
 
-## 4. UI/UX & Aesthetics
-- [ ] Adhere to a "professional engineering" visual style (clean lines, high-contrast typography, technical imagery).
-- [ ] Implement smooth scrolling and subtle micro-interactions (hover states, fade-ins).
-- [ ] Ensure accessible color contrast ratios (WCAG AA standard).
+## 4. Quality Assurance & Testing
+- [ ] **Unit Tests:** Coverage for win-detection edge cases (e.g., edge of board, intersecting lines, "overline" scenarios if applicable).
+- [ ] **Integration Tests:** Simulated game flows from start to win/draw.
+- [ ] **Benchmark:** Ensure win-checking logic completes in O(1) or O(N) relative to move placement for zero-latency gameplay.
+- [ ] **Linter Compliance:** Zero warnings from `golangci-lint` or equivalent project-standard tool.
 
-## 5. Deployment & Validation
-- [ ] Implement a CI/CD pipeline for automated testing and deployment.
-- [ ] Verify all internal and external links are functional (no 404s).
-- [ ] Conduct a final smoke test in a production-like environment.
-- [ ] Documentation updated (README.md) with build and deployment instructions.
+## 5. Documentation & Delivery
+- [ ] **README.md:** Detailed instructions on how to build, run, and play the game.
+- [ ] **Binary Compilation:** Verified `go build` output for target architecture.
+- [ ] **Clean Exit:** Implementation of graceful shutdown and signal handling (e.g., Ctrl+C).
