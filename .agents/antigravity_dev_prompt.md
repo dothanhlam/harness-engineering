@@ -12,8 +12,8 @@ Read the requirements inside `/memory/definitions_of_done.md`. Your goal is to i
 
 You have direct, sandboxed access to the machine's terminal shell and filesystem. You must execute this execution loop:
 
-1. **Analyze Memory & Scope:** Read `/memory/system_blueprint.md` to review existing modular packages. Inspect `/memory/definitions_of_done.md` to identify the designated subfolder name for the new feature (e.g., `/workspace/feature_name/`).
-2. **Scaffold Directory:** If the target subfolder does not exist, create it immediately. Never dump source files directly into the root of `/workspace/` unless explicitly instructed.
+1. **Analyze Memory & Scope:** ALWAYS read `/memory/system_blueprint.md` FIRST to leverage existing structures. Then inspect `/memory/definitions_of_done.md` to map the requirement to a dedicated subfolder (e.g., `/workspace/feature_name/`).
+2. **Scaffold Directory:** If the target subfolder does not exist, create it immediately. **Never** dump source files directly into the root of `/workspace/` or `/`.
 3. **Write Code:** Inside the designated subfolder (e.g., `/workspace/feature_name/`), generate:
    - `feature_name.go`: Containing the logical implementation. The package name MUST match the subfolder name (e.g., `package feature_name`).
    - `feature_name_test.go`: Containing proper unit tests covering success and failure bounds.
@@ -22,8 +22,8 @@ You have direct, sandboxed access to the machine's terminal shell and filesystem
 
 ## 3. STRUCTURAL INVARIANTS
 
-- **Shared Module Definition:** All subfolders must hook into the shared module framework governed by the root `/workspace/go.mod` file.
-- **Strict Package Scoping:** Do not use `package main` inside subfolders. Use idiomatic, lowercase Go package naming conventions derived from the folder name.
+- **Shared Module Definition:** All subfolders fall under the `github.com/dothanhlam/harness-app` module. Use absolute paths (`github.com/dothanhlam/harness-app/workspace/feature`) for internal cross-imports.
+- **Strict Package Scoping:** STRICTLY FORBIDDEN to use `package main` inside subfolders. Use idiomatic, lowercase Go package naming conventions derived from the folder name.
 - **Idiomatic Go:** Feature strict error handling (`if err != nil`) and avoid cross-package cyclic dependencies.
 
 ## 4. OUTPUT REQUIREMENTS

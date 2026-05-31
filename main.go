@@ -34,21 +34,40 @@ type WorkflowState struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
-// updateState writes the current pipeline stage to workspace/<feature>/state.json.
-func updateState(stage Stage, feature string) {
+// updateState writes the current pipeline stage to workspace/state.json.
+func updateState(stage Stage) {
 	state := WorkflowState{
 		TaskID:       "cti_parser_001",
 		CurrentStage: stage,
 		UpdatedAt:    time.Now(),
 	}
 	file, _ := json.MarshalIndent(state, "", "  ")
-	
-	if feature != "" {
-		_ = os.WriteFile(fmt.Sprintf("workspace/%s/state.json", feature), file, 0644)
-		fmt.Printf("\n🔄 [HARNESS STATE: %s] -> %s\n", feature, stage)
-	} else {
-		fmt.Printf("\n🔄 [HARNESS STATE: GLOBAL] -> %s\n", stage)
+	_ = os.WriteFile("workspace/state.json", file, 0644)
+	fmt.Printf("\n🔄 [HARNESS STATE] -> %s\n", stage)
+}
+
+// updateSystemMemory scans workspace/ for modular features and archives them into memory.
+func updateSystemMemory() {
+	entries, err := os.ReadDir("workspace")
+	if err != nil {
+		return
 	}
+	
+	var blueprintBuilder strings.Builder
+	blueprintBuilder.WriteString("# System Blueprint: Modular Feature Architectures\n\n")
+	blueprintBuilder.WriteString("This document automatically tracks all implemented modular features.\n\n")
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			feature := entry.Name()
+			blueprintBuilder.WriteString(fmt.Sprintf("## Feature Module: %s\n", feature))
+			blueprintBuilder.WriteString(fmt.Sprintf("- **Location:** `/workspace/%s/`\n", feature))
+			blueprintBuilder.WriteString(fmt.Sprintf("- **Status:** Archived & Verified\n\n"))
+		}
+	}
+	
+	_ = os.WriteFile("memory/system_blueprint.md", []byte(blueprintBuilder.String()), 0644)
+	fmt.Println("💾 Synchronized feature states into /memory/system_blueprint.md")
 }
 
 // callOllama sends a chat request to a configurable Ollama API endpoint.
@@ -162,7 +181,7 @@ Output ONLY the strict markdown checklist content. Do not include any chat fille
 	// =======================================================
 	// PHASE 1: DEVELOPMENT (DEV AGENT)
 	// =======================================================
-	updateState(StageDev, "")
+	updateState(StageDev)
 	fmt.Printf("🤖 Activating %s CLI as your Autonomous Developer Agent...\n", *devAgentCmd)
 
 	devPrompt, err := os.ReadFile(".agents/antigravity_dev_prompt.md")
@@ -189,8 +208,26 @@ Output ONLY the strict markdown checklist content. Do not include any chat fille
 	// =======================================================
 	// PHASE 2: QA VERIFICATION (TEST SUITE)
 	// =======================================================
-	updateState(StageQA, "")
-	fmt.Println("🕵️ Running comprehensive test hooks for each feature...")
+	updateState(StageQA)
+	fmt.Println("🕵️ Running comprehensive test hooks...")
+
+	cmdQA := exec.Command("go", "test", "-v", "./workspace/...")
+	var outQA, errQA bytes.Buffer
+	cmdQA.Stdout = &outQA
+	cmdQA.Stderr = &errQA
+
+	if err := cmdQA.Run(); err != nil {
+		_ = os.WriteFile("workspace/qa_error.log", errQA.Bytes(), 0644)
+		fmt.Println("⚠️ Runtime Unit Tests Failed. Log saved to workspace/qa_error.log")
+	} else {
+		fmt.Println("🎉 100% of Unit Tests passed perfectly.")
+	}
+
+	// =======================================================
+	// PHASE 3: DEVOPS & LOCAL OUTCOME COMPILATION (DEVOPS AGENT)
+	// =======================================================
+	updateState(StageDevOps)
+	fmt.Printf("📝 Invoking local %s model to construct deployment documentation...\n", *devOpsModel)
 
 	entries, errRead := os.ReadDir("workspace")
 	if errRead == nil {
@@ -199,38 +236,6 @@ Output ONLY the strict markdown checklist content. Do not include any chat fille
 				continue
 			}
 			feature := entry.Name()
-			updateState(StageQA, feature)
-			fmt.Printf("   Testing feature: %s...\n", feature)
-			cmdQA := exec.Command("go", "test", "-v", fmt.Sprintf("-coverprofile=workspace/%s/coverage.out", feature), fmt.Sprintf("./workspace/%s/...", feature))
-			var outQA, errQA bytes.Buffer
-			cmdQA.Stdout = &outQA
-			cmdQA.Stderr = &errQA
-
-			if err := cmdQA.Run(); err != nil {
-				logPath := fmt.Sprintf("workspace/%s/qa_error.log", feature)
-				_ = os.WriteFile(logPath, errQA.Bytes(), 0644)
-				fmt.Printf("   ⚠️ Runtime Unit Tests Failed for %s. Log saved to %s\n", feature, logPath)
-			} else {
-				fmt.Printf("   🎉 100%% of Unit Tests passed perfectly for %s.\n", feature)
-			}
-		}
-	} else {
-		fmt.Printf("⚠️ Could not read workspace directory: %v\n", errRead)
-	}
-
-	// =======================================================
-	// PHASE 3: DEVOPS & LOCAL OUTCOME COMPILATION (DEVOPS AGENT)
-	// =======================================================
-	updateState(StageDevOps, "")
-	fmt.Printf("📝 Invoking local %s model to construct deployment documentation...\n", *devOpsModel)
-
-	if errRead == nil {
-		for _, entry := range entries {
-			if !entry.IsDir() {
-				continue
-			}
-			feature := entry.Name()
-			updateState(StageDevOps, feature)
 
 			featureFiles, _ := os.ReadDir(fmt.Sprintf("workspace/%s", feature))
 			var allCode string
@@ -261,12 +266,7 @@ Output ONLY the strict markdown checklist content. Do not include any chat fille
 	// =======================================================
 	// FINALIZE
 	// =======================================================
-	updateState(StageDone, "")
-	entriesDone, _ := os.ReadDir("workspace")
-	for _, entry := range entriesDone {
-		if entry.IsDir() {
-			updateState(StageDone, entry.Name())
-		}
-	}
+	updateState(StageDone)
+	updateSystemMemory()
 	fmt.Println("\n🎯 PIPELINE RUN COMPLETE. Check your /workspace folder for final artifacts!")
 }

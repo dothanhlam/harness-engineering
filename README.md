@@ -24,7 +24,7 @@ A modular approach containing highly secure and robust validation components:
 
 ## ⚙️ Configuration & Agent Switching
 
-You can switch the agents, models, and endpoints used in each phase dynamically using CLI flags:
+You can switch the agents, models, and endpoints used in each phase dynamically using `config.json` at the root of the project, or via CLI flags which override the defaults:
 
 | Flag | Default Value | Description |
 |---|---|---|
@@ -57,17 +57,21 @@ agy --print "$DEV_PROMPT" --dangerously-skip-permissions --add-dir ./workspace -
 ## 📁 Repository Structure
 
 ```
-harness-engineering/
+harness-app/
 ├── .agents/
 │   └── antigravity_dev_prompt.md  # Autonomous Developer Agent configuration
 ├── memory/
 │   ├── definitions_of_done.md    # Product specifications & validation criteria
-│   └── lessons_learned.md        # Debugging guidelines & operational history
+│   ├── lessons_learned.md        # Debugging guidelines & operational history
+│   └── system_blueprint.md       # Auto-syncing modular feature architectures
 ├── workspace/                    # Core development artifacts
-│   ├── go.mod                    # Module definition (harness-engineering)
-│   ├── main.go                   # Implementation (e.g. Bcrypt Hashing)
-│   ├── main_test.go              # Unit test suite (e.g. Email validation, Hashing)
+│   ├── email_validation/         # Modular package: Email Validation
+│   ├── landing_page/             # Modular package: Landing Page
+│   ├── password/                 # Modular package: Bcrypt Hashing
+│   ├── random/                   # Modular package: Random Generation
 │   └── state.json                # JSON active pipeline stage tracker
+├── config.json                   # Agent and Model default configurations
+├── go.mod                        # Module definition (github.com/dothanhlam/harness-app)
 ├── main.go                       # Main Go Harness pipeline orchestrator
 └── README.md                     # Project documentation (this file)
 ```
@@ -78,32 +82,28 @@ harness-engineering/
 
 ### Prerequisites
 *   **Go** (1.21 or higher)
-*   *(Optional)* **Ollama** running locally with the configured model to execute the automated DevOps documentation phase.
-*   *(Optional)* **agy** / **Gemini CLI** installed in your environment for autonomous code generation.
+*   **Ollama**: Must be installed and running locally (`ollama serve`) with the configured model (e.g., `hermes3:8b`) to execute the automated DevOps documentation phase.
+*   **agy CLI**: The Antigravity autonomous developer agent must be installed to execute code generation.
 
 ---
 
 ### Running the Test Suite
-The project contains comprehensive unit tests that cover module implementations (like Email Validation and Bcrypt constraints). Run them using:
+The project contains comprehensive unit tests that cover all modular implementations within the `workspace/` folder. Run them using:
 
 ```bash
-cd workspace
-go test -v ./...
+go test -v ./workspace/...
 ```
 
 **Example output:**
 ```text
-=== RUN   TestHashPassword_Success
---- PASS: TestHashPassword_Success (0.12s)
-=== RUN   TestHashPassword_LengthLimit
---- PASS: TestHashPassword_LengthLimit (0.00s)
-=== RUN   TestComparePassword_Success
---- PASS: TestComparePassword_Success (0.11s)
-=== RUN   TestComparePassword_Failure
---- PASS: TestComparePassword_Failure (0.12s)
-=== RUN   TestIsValidEmail_Valid
---- PASS: TestIsValidEmail_Valid (0.00s)
+=== RUN   TestHashPassword
+--- PASS: TestHashPassword (0.26s)
+=== RUN   TestIsValidEmail
+--- PASS: TestIsValidEmail (0.00s)
+=== RUN   TestHandler_Index
+--- PASS: TestHandler_Index (0.00s)
 ...
 PASS
-ok  	harness-engineering/workspace	0.360s
+ok  	github.com/dothanhlam/harness-app/workspace/password	2.734s
+ok  	github.com/dothanhlam/harness-app/workspace/landing_page	0.968s
 ```
