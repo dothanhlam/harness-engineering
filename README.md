@@ -29,6 +29,7 @@ You can switch the agents, models, and endpoints used in each phase dynamically 
 | Flag | Default Value | Description |
 |---|---|---|
 | `-task` | `""` | Raw requirement string. Triggers Phase 0 Business Analyst to update `definitions_of_done.md` |
+| `-epic` | `""` | Path to a directory containing epic requirements. Triggers the Epic Orchestrator for bulk decomposition and implementation. |
 | `-ba-agent` | `"gemini"` | Binary/CLI name used for Phase 0 Business Analyst |
 | `-dev-agent` | `"agy"` | Binary/CLI name used for Phase 1 Developer Coding |
 | `-devops-model` | `"hermes3:8b"`| Local Ollama model used for Phase 3 Release Notes |
@@ -38,6 +39,9 @@ You can switch the agents, models, and endpoints used in each phase dynamically 
 ```bash
 # Run with standard agents, triggering the BA phase with a raw task requirement
 go run main.go -task "Create a secure bcrypt hashing module"
+
+# Trigger the Epic Orchestrator to decompose and implement a large folder of requirements
+go run main.go -epic "./requirements/auth_epic/"
 
 # Switch the dev coding agent to another CLI tool (e.g. customized-coder)
 go run main.go -dev-agent customized-coder
