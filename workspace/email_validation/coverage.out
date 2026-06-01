@@ -1,0 +1,27 @@
+mode: set
+harness-engineering/workspace/email_validation/email_validation.go:34.38,36.41 1 1
+harness-engineering/workspace/email_validation/email_validation.go:36.41,38.3 1 1
+harness-engineering/workspace/email_validation/email_validation.go:41.2,41.34 1 1
+harness-engineering/workspace/email_validation/email_validation.go:41.34,43.3 1 1
+harness-engineering/workspace/email_validation/email_validation.go:46.2,46.35 1 1
+harness-engineering/workspace/email_validation/email_validation.go:46.35,48.3 1 1
+harness-engineering/workspace/email_validation/email_validation.go:51.2,51.36 1 1
+harness-engineering/workspace/email_validation/email_validation.go:51.36,53.3 1 1
+harness-engineering/workspace/email_validation/email_validation.go:56.2,61.45 4 1
+harness-engineering/workspace/email_validation/email_validation.go:61.45,63.3 1 1
+harness-engineering/workspace/email_validation/email_validation.go:67.2,67.76 1 1
+harness-engineering/workspace/email_validation/email_validation.go:67.76,69.3 1 1
+harness-engineering/workspace/email_validation/email_validation.go:70.2,70.70 1 1
+harness-engineering/workspace/email_validation/email_validation.go:70.70,72.3 1 1
+harness-engineering/workspace/email_validation/email_validation.go:75.2,75.44 1 1
+harness-engineering/workspace/email_validation/email_validation.go:75.44,77.3 1 1
+harness-engineering/workspace/email_validation/email_validation.go:80.2,80.36 1 1
+harness-engineering/workspace/email_validation/email_validation.go:80.36,82.3 1 1
+harness-engineering/workspace/email_validation/email_validation.go:85.2,86.36 2 1
+harness-engineering/workspace/email_validation/email_validation.go:86.36,87.22 1 1
+harness-engineering/workspace/email_validation/email_validation.go:87.22,89.4 1 0
+harness-engineering/workspace/email_validation/email_validation.go:90.3,90.37 1 1
+harness-engineering/workspace/email_validation/email_validation.go:90.37,92.4 1 1
+harness-engineering/workspace/email_validation/email_validation.go:96.2,97.32 2 1
+harness-engineering/workspace/email_validation/email_validation.go:97.32,99.3 1 1
+harness-engineering/workspace/email_validation/email_validation.go:101.2,101.13 1 1
