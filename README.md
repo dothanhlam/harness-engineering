@@ -7,6 +7,24 @@ Welcome to the **Harness Orchestration System**, a robust, state-aware automatio
 ## 🚀 Key Features
 
 ### 1. 🔄 Multi-Stage Orchestration Pipeline (`main.go` at root)
+
+```mermaid
+flowchart TD
+    BA["1. BA STAGE (Gemini)<br>Read PRD -> Write memory/DoD"]
+    DEV["2. DEV STAGE (agy)<br>Generate code into subfolder"]
+    QA["3. QA STAGE (go test)<br>Auto-heal up to 3 times"]
+    AUDIT["4. GOVERNANCE & AUDIT GATE<br>Scan for malicious code & check security rules"]
+    HITL["5. HUMAN-IN-THE-LOOP<br>Manual terminal approval"]
+    DEVOPS["6. DEVOPS & MEMORY COMPACTION<br>Compress blueprint -> Linear MCP Update -> Export telemetry.json"]
+
+    BA --> DEV
+    DEV --> QA
+    QA -- "Delegation Loop (Fail)" --> BA
+    QA -- "Pass" --> AUDIT
+    AUDIT -- "Pass" --> HITL
+    HITL -- "Approve" --> DEVOPS
+```
+
 The main orchestrator transitions autonomously through defined pipeline states, persisting its current state to `workspace/state.json`. It now features advanced **Telemetry Tracking** to export runtime metrics (like generated LOC, timestamps, and self-healing success rates) to `workspace/telemetry.json`.
 *   **`DEV_CODING`**: Invokes the configured developer agent (`agy` CLI by default) to synthesize and self-verify project files.
 *   **`SECURITY_AUDIT`**: An integrated guardrail that intercepts execution before QA to strictly analyze generated `.go` files for forbidden imports (like `os/exec`), destructive commands, or hardcoded credentials. It fails the build immediately on violation to initiate a safe healing cycle.
