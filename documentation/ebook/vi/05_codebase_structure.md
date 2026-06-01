@@ -5,9 +5,9 @@
 ## Các Tệp Cốt lõi
 
 ### `main.go`
-Đây là trái tim của bộ điều phối. Nó quản lý cỗ máy trạng thái (state machine), ủy quyền các tác vụ cho các đặc vụ (agents), thực thi các rào chắn bảo mật (`AuditGeneratedCode`), và nắm bắt các dữ liệu từ xa (telemetry).
+Đây là trái tim của orchestrator. Nó quản lý cỗ máy trạng thái (state machine), ủy quyền các tác vụ cho các agent, thực thi các rào chắn bảo mật (`AuditGeneratedCode`), và nắm bắt các dữ liệu từ xa (telemetry).
 
-Ví dụ, trạng thái của đường ống (pipeline) được theo dõi một cách nghiêm ngặt bằng cách sử dụng struct `WorkflowState` này, nó sẽ được ghi vào tệp `state.json` ở mỗi lần chuyển trạng thái:
+Ví dụ, trạng thái của pipeline được theo dõi một cách nghiêm ngặt bằng cách sử dụng struct `WorkflowState` này, nó sẽ được ghi vào tệp `state.json` ở mỗi lần chuyển trạng thái:
 ```go
 // WorkflowState là trạng thái đường ống được lưu giữ, ghi vào workspace/state.json.
 type WorkflowState struct {
@@ -31,9 +31,9 @@ Tệp cấu hình toàn cục. Nó quyết định việc sử dụng các đặ
 
 ## Môi trường của AI
 
-* **`.agents/`**: Chứa các hệ thống gợi ý (system prompts) và cấu hình hành vi cho các đặc vụ AI của chúng ta. Ví dụ, `antigravity_dev_prompt.md` hướng dẫn đặc vụ Lập trình viên chính xác về các tiêu chuẩn viết mã của chúng ta.
-* **`memory/`**: Đây là "bộ não" của AI. Không giống như các kỹ sư con người, các đặc vụ AI sẽ mất ngữ cảnh của chúng giữa các lần chạy. Chúng ta lưu giữ bộ nhớ của chúng tại đây:
-    * `definitions_of_done.md`: Danh sách kiểm tra kỹ thuật nghiêm ngặt do đặc vụ BA tạo ra.
+* **`.agents/`**: Chứa các hệ thống gợi ý (system prompts) và cấu hình hành vi cho các AI agent của chúng ta. Ví dụ, `antigravity_dev_prompt.md` hướng dẫn Developer agent chính xác về các tiêu chuẩn viết mã của chúng ta.
+* **`memory/`**: Đây là "bộ não" của AI. Không giống như các kỹ sư con người, các AI agent sẽ mất ngữ cảnh của chúng giữa các lần chạy. Chúng ta lưu giữ bộ nhớ của chúng tại đây:
+    * `definitions_of_done.md`: Danh sách kiểm tra kỹ thuật nghiêm ngặt do BA agent tạo ra.
     * `system_blueprint.md`: Một bản đồ kiến trúc giúp AI hiểu về hệ thống rộng lớn hơn mà nó đang đóng góp vào.
     * `lessons_learned.md`: Một tài liệu sống, nơi AI ghi lại những lỗi mà nó đã sửa để không lặp lại chúng nữa.
 
@@ -58,4 +58,4 @@ Tệp cấu hình toàn cục. Nó quyết định việc sử dụng các đặ
       }
       ```
 
-Bằng cách giữ cho bộ điều phối (`main.go`) tách biệt hoàn toàn khỏi mã được tạo ra (`workspace/`), chúng ta đảm bảo rằng AI của mình có thể xây dựng phần mềm dạng module, có thể kiểm thử mà không bao giờ phá vỡ chính đường ống cốt lõi.
+Bằng cách giữ cho orchestrator (`main.go`) tách biệt hoàn toàn khỏi mã được tạo ra (`workspace/`), chúng ta đảm bảo rằng AI của mình có thể xây dựng phần mềm dạng module, có thể kiểm thử mà không bao giờ phá vỡ chính pipeline cốt lõi.

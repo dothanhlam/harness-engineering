@@ -4,13 +4,13 @@ Bạn sẽ tương tác với Harness như thế nào hàng ngày? Bạn không 
 
 ## Cấu hình
 
-Chúng ta sử dụng kết hợp giữa `harness_config.json` và các cờ CLI để kiểm soát đặc vụ AI nào đang hoạt động.
+Chúng ta sử dụng kết hợp giữa `harness_config.json` và các cờ CLI để kiểm soát AI agent nào đang hoạt động.
 Mặc định:
 * **Phân tích Nghiệp vụ (Giai đoạn 0)** sử dụng CLI `gemini` (với khả năng Notion MCP).
 * **Lập trình viên (Giai đoạn 1)** sử dụng CLI `agy` (Antigravity).
 * **DevOps (Giai đoạn 3)** sử dụng một phiên bản `ollama` cục bộ (với khả năng Linear MCP).
 
-*Lưu ý: MCP (Model Context Protocol) cho phép các đặc vụ AI tiếp cận với các công cụ bên ngoài như Notion để đọc các PRD của bạn và Linear để tự động cập nhật các thẻ công việc của bạn.*
+*Lưu ý: MCP (Model Context Protocol) cho phép các AI agent tiếp cận với các công cụ bên ngoài như Notion để đọc các PRD của bạn và Linear để tự động cập nhật các thẻ công việc của bạn.*
 
 ## Chạy một Tác vụ (Task)
 

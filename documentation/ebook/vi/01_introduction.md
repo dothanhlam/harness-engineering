@@ -6,11 +6,11 @@ Hướng dẫn ngắn gọn này được thiết kế để giúp toàn bộ nh
 
 ## Kỹ thuật Harness là gì?
 
-Kỹ thuật Harness nghe có vẻ đáng sợ, nhưng đối với bạn - một nhà phát triển, nó đơn giản là **đưa ra yêu cầu (prompting) cho bộ điều phối để nó làm những công việc nặng nhọc**. Thay vì phải gõ thủ công các đoạn mã lặp đi lặp lại, chạy các bài kiểm thử và viết tài liệu, bạn chỉ cần cung cấp cho Harness một yêu cầu và nó sẽ điều phối các đặc vụ AI (AI agents) để xây dựng phần mềm cho bạn.
+Kỹ thuật Harness nghe có vẻ đáng sợ, nhưng đối với bạn - một nhà phát triển, nó đơn giản là **đưa ra yêu cầu (prompting) cho orchestrator để nó làm những công việc nặng nhọc**. Thay vì phải gõ thủ công các đoạn mã lặp đi lặp lại, chạy các bài kiểm thử và viết tài liệu, bạn chỉ cần cung cấp cho Harness một yêu cầu và nó sẽ điều phối các AI agent (AI agents) để xây dựng phần mềm cho bạn.
 
 Hãy nghĩ về nó như một dây chuyền lắp ráp tự động cho phần mềm của chúng ta:
 1. Chúng ta cung cấp cho nó một **Yêu cầu Sản phẩm (PRD)**.
-2. Harness giao nhiệm vụ cho các đặc vụ AI chuyên trách.
+2. Harness giao nhiệm vụ cho các AI agent chuyên trách.
 3. Harness kiểm tra khắt khe đầu ra, buộc AI phải tự sửa lỗi của chính nó.
 4. Harness quét mã nguồn để tìm các lỗ hổng bảo mật.
 5. Cuối cùng, nó đóng gói mã nguồn để con người đánh giá.
@@ -21,4 +21,4 @@ Hãy nghĩ về nó như một dây chuyền lắp ráp tự động cho phần 
 * **Chất lượng được tích hợp sẵn**: Mã nguồn không chỉ được tạo ra; nó còn được biên dịch, kiểm tra và kiểm toán trước cả khi con người nhìn vào.
 * **Tập trung vào Thiết kế Cấp cao**: Là những kỹ sư, công việc của chúng ta chuyển từ việc viết cú pháp sang thiết kế kiến trúc hệ thống và đưa ra các "Định nghĩa Hoàn thành" (Definitions of Done) khắt khe để AI tuân theo.
 
-Trong các chương tiếp theo, chúng ta sẽ đi sâu vào chính xác cách repository cụ thể của chúng ta hoạt động, cấu trúc của đường ống (pipeline), và cách chúng ta ngăn chặn các đặc vụ AI hoạt động ngoài tầm kiểm soát!
+Trong các chương tiếp theo, chúng ta sẽ đi sâu vào chính xác cách repository cụ thể của chúng ta hoạt động, cấu trúc của pipeline, và cách chúng ta ngăn chặn các AI agent hoạt động ngoài tầm kiểm soát!
