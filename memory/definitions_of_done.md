@@ -1,27 +1,39 @@
-# Definition of Done: Fibonacci Function Implementation
+# Definition of Done: Tower of Hanoi Implementation
 
-## 1. Core Logic & Algorithm
-- [ ] **Algorithm Selection:** Implementation of an efficient Fibonacci algorithm (e.g., Iterative for O(n) time/O(1) space or Matrix Exponentiation for O(log n) time).
-- [ ] **Data Type Handling:** Use of arbitrary-precision integers (e.g., `math/big` in Go) to prevent overflow for large `n`.
-- [ ] **Input Validation:** Strict validation for non-negative integer inputs ($n \ge 0$); return clear error/exception for negative values or non-integer types.
-- [ ] **Base Case Integrity:** Explicit handling of $F(0) = 0$ and $F(1) = 1$.
+## 1. Functional Requirements
+- [ ] Implement the core recursive algorithm for the Tower of Hanoi problem.
+- [ ] Support dynamic input for the number of disks ($n$).
+- [ ] Define and manage three distinct rods: `Source`, `Auxiliary`, and `Destination`.
+- [ ] Ensure the algorithm preserves the fundamental constraint: A larger disk can never be placed on top of a smaller disk.
+- [ ] Output a deterministic sequence of moves representing the optimal solution.
 
-## 2. Technical Architecture & Integration
-- [ ] **Interface Definition:** Clean, typed function signature (e.g., `func Fibonacci(n int) (*big.Int, error)`).
-- [ ] **Statelessness:** Ensure the core function is side-effect free and deterministic.
-- [ ] **Optimization (Caching):** Implementation of memoization if the function is part of a recursive or frequently-called API to ensure $O(1)$ retrieval for previously computed values.
-- [ ] **Resource Management:** Bounded execution time and memory usage for extremely large $n$ to prevent stack overflow or heap exhaustion.
+## 2. Technical Specifications
+- [ ] **Algorithm Efficiency:** Verify Time Complexity is exactly $O(2^n)$.
+- [ ] **Memory Management:** Verify Space Complexity is $O(n)$ representing the maximum recursion depth.
+- [ ] **Input Validation:** 
+    - [ ] Handle $n = 0$ as a no-op or empty move set.
+    - [ ] Provide error handling or constraints for negative integers.
+    - [ ] Implement a logical upper bound for $n$ to prevent stack overflow or excessive execution time in a CLI environment.
+- [ ] **Data Structures:** Use idiomatic Go slices or custom structs to represent the state of rods if state tracking is required.
 
-## 3. Quality Assurance & Testing
-- [ ] **Unit Tests:** 100% path coverage including:
-    - [ ] Base cases: $n=0, n=1$.
-    - [ ] Standard cases: $n=2, n=10$.
-    - [ ] Large cases: $n=92$ (max uint64) and $n > 100$ (big int verification).
-- [ ] **Property-Based Testing:** Validation of the property $F(n) = F(n-1) + F(n-2)$ for random $n > 1$.
-- [ ] **Performance Benchmarks:** Execution time measurements for $n=1,000$, $n=10,000$, and $n=100,000$ to ensure linear or logarithmic scaling.
-- [ ] **Static Analysis:** Zero violations from project-standard linters (e.g., `staticcheck`, `golangci-lint`).
+## 3. Code Quality & Standards
+- [ ] Code follows standard Go formatting (`go fmt`).
+- [ ] All public functions and types include Godoc-compliant comments.
+- [ ] Variable naming reflects algorithmic domain (e.g., `source`, `target`, `aux`).
+- [ ] No use of global state; the solver should be encapsulated and re-entrant.
 
-## 4. Documentation & Maintenance
-- [ ] **Code Documentation:** Standard-compliant docstrings explaining complexity (Big O notation), constraints, and error conditions.
-- [ ] **Example Usage:** Included testable examples or README snippets demonstrating library integration.
-- [ ] **Type Safety:** Verified exports and visibility modifiers adhere to the project's encapsulation standards.
+## 4. Testing & Validation
+- [ ] **Unit Tests:** Implement tests for $n=1, 2, 3$.
+- [ ] **Mathematical Verification:** Assert that the length of the move sequence equals $2^n - 1$.
+- [ ] **State Validation:** (Optional/Advanced) Verify the rod state after each move to ensure no rule violations occurred during execution.
+- [ ] **Performance Benchmarking:** Include `go test -bench` for $n=10$ and $n=20$ to establish a performance baseline.
+
+## 5. Documentation & Workspace Integration
+- [ ] `workspace/hanoi/hanoi.go`: Primary implementation.
+- [ ] `workspace/hanoi/hanoi_test.go`: Comprehensive test suite.
+- [ ] `workspace/hanoi/README.md`: Instructions on how to run the algorithm and complexity analysis.
+- [ ] `workspace/hanoi/RELEASE_NOTES.md`: Document the initial release and any specific constraints.
+
+## 6. Definitions of Success
+- [ ] The algorithm successfully moves $n$ disks from Source to Destination in the minimum number of steps.
+- [ ] The code is integrated into the `harness-engineering` workspace structure without breaking existing builds.

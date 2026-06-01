@@ -2,18 +2,31 @@
   "ba": {
     "_comment": "BA agent: runs business analysis & drafts definitions_of_done.md. Uses 'gemini run <prompt>'",
     "agent": "gemini",
+    "cmd_template": ["run", "{prompt}"],
     "mcp_config": ".mcp/ba_notion.json"
   },
   "dev": {
-    "_comment": "Dev agent: agy CLI. model_name sets ANTIGRAVITY_MODEL env var. Default: gemini-2.5-flash",
+    "_comment": "Dev agent: Claude CLI. model passed via --model flag.",
+    "agent": "claude",
+    "model_name": "claude-sonnet-4-20250514",
+    "cmd_template": ["--print", "{prompt}", "--model", "{model}", "--dangerously-skip-permissions", "--add-dir", "./workspace", "--add-dir", "./memory"],
+    "mcp_config": ""
+  },
+  "_dev_agy_backup": {
+    "_comment": "INACTIVE — Previous dev agent: agy CLI. Swap with 'dev' key to restore.",
     "agent": "agy",
     "model_name": "gemini-2.5-flash",
+    "cmd_template": ["--print", "{prompt}", "--dangerously-skip-permissions", "--add-dir", "./workspace", "--add-dir", "./memory"],
+    "env": {
+      "ANTIGRAVITY_MODEL": "{model}"
+    },
     "mcp_config": ""
   },
   "devops": {
     "_comment": "DevOps agent: local ollama CLI. model_name is passed as 'ollama run <model_name>'. mcp_config points to Linear MCP for ticket updates",
     "agent": "ollama",
     "model_name": "hermes3:8b",
+    "cmd_template": ["run", "{model}", "{prompt}"],
     "mcp_config": ".mcp/devops_linear.json"
   }
 }

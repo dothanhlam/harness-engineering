@@ -1,9 +1,9 @@
 # Current System Architecture Map
 
 ## Core Game Logic & Engine
-- The game's core engine will be isolated from the user interface, adhering[8D[K
-adhering to domain modeling best practices. This separation allows for easi[4D[K
-easier testing and potential reuse in other applications.
+- The game's core engine is isolated from the user interface, following dom[3D[K
+domain modeling best practices. This separation allows for easier testing a[1D[K
+and potential reuse in other applications.
 
 ## Technical Architecture (Go/CLI)
 - Concurrency safety is crucial as inputs may come asynchronously. To ensur[5D[K
@@ -66,3 +66,83 @@ well-documented.
 
 *This log will be updated as the blueprint evolves or new requirements are [K
 introduced.*
+
+---
+
+*Archived Feature - Structural Dependencies and Package Reusability Analysi[7D[K
+Analysis (2023-04-15)*
+
+### Structural Dependencies:
+1. **Tower of Hanoi Integration Impact:**
+   - The Tower of Hanoi algorithm's core recursive logic must be integrated[10D[K
+integrated into the existing system without disrupting the current function[8D[K
+functionalities. This will involve ensuring that the game engine can handle[6D[K
+handle additional computational tasks efficiently.
+   - The defined `Source`, `Auxiliary`, and `Destination` rods must be mana[4D[K
+managed within the game's state management system, possibly requiring adjus[5D[K
+adjustments to how turns and moves are tracked.
+
+2. **Concurrency Management for Tower of Hanoi:**
+   - Given the existing requirement for concurrency safety in input handlin[7D[K
+handling, managing the synchronous nature of disk movement in the Tower of [K
+Hanoi might not directly conflict but could introduce additional considerat[10D[K
+considerations for thread-safety within game state operations.
+
+3. **Algorithm Efficiency and Memory Management Impacts:**
+   - Ensuring that the Tower of Hanoi algorithm meets the specified time an[2D[K
+and space complexity requirements will be crucial. This may involve reviewi[7D[K
+reviewing and possibly adjusting data structures used in the core engine or[2D[K
+or how concurrency is managed to ensure no performance bottlenecks are intr[4D[K
+introduced.
+
+### Package Reusability:
+- The core recursive logic of the Tower of Hanoi algorithm could potentiall[10D[K
+potentially be abstracted into a reusable package, offering mathematical pr[2D[K
+prowess beyond just game applications. This would involve creating a modula[6D[K
+modular design where the algorithm can be imported and used independently w[1D[K
+within other projects.
+- The technical specifications for input validation, error handling, and lo[2D[K
+logical bounds could also provide a solid foundation for creating a generic[7D[K
+generic disk movement validation package.
+
+### Architectural Correlations:
+- **Integration with Game Turn Management:** Similar to how the existing bl[2D[K
+blueprint anticipates reusability in turn management and state management s[1D[K
+systems, integrating the move sequence tracking of the Tower of Hanoi into [K
+these systems will be crucial. This could potentially enhance or refine exi[3D[K
+existing undo feature capabilities.
+- **Algorithm Efficiency vs. Concurrency Safety:** As the new requirement e[1D[K
+emphasizes algorithm efficiency and memory management within a concurrent e[1D[K
+environment, this might necessitate a reevaluation of the current concurren[9D[K
+concurrency strategies to ensure they align with the needs of the Tower of [K
+Hanoi implementation.
+
+### Suggested Integration Steps:
+1. **Abstract Tower of Hanoi Logic:**
+   - Begin by abstracting the core recursive logic of the Tower of Hanoi in[2D[K
+into a separate package or module, following the principle of separation of[2D[K
+of concerns.
+   
+2. **Integrate with Game Engine:**
+   - Plan the integration points where the game engine interacts with the n[1D[K
+new algorithm, focusing on how to manage turns and state changes without vi[2D[K
+violating game rules.
+  
+3. **Concurrency Adjustment (If Necessary):**
+   - Review existing concurrency strategies in light of adding computationa[12D[K
+computational-heavy tasks like the Tower of Hanoi, making adjustments as ne[2D[K
+needed to maintain performance and thread safety.
+
+4. **Testing and Validation:**
+   - Develop a comprehensive test suite that covers unit tests for various [K
+inputs and benchmarks for performance validation.
+   
+5. **Documentation Update:**
+   - Update documentation to reflect the new implementation details, focusi[6D[K
+focusing on how users can leverage the Tower of Hanoi algorithm within thei[4D[K
+their applications.
+
+---
+
+*This analysis reflects the current state and will be updated as the system[6D[K
+system evolves.*
