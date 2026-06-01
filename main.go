@@ -38,6 +38,20 @@ type WorkflowState struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
+type Telemetry struct {
+	TotalDurationSeconds float64  `json:"total_duration_seconds"`
+	StagesExecuted       []string `json:"stages_executed"`
+	TotalRetriesUsed     int      `json:"total_retries_used"`
+	CodeHealingSuccess   bool     `json:"code_healing_success"`
+	LinesOfCodeGenerated int      `json:"lines_of_code_generated"`
+	Timestamp            string   `json:"timestamp"`
+}
+
+var (
+	pipelineTelemetry Telemetry
+	pipelineStartTime time.Time
+)
+
 // EpicPipeline holds the decomposed tasks for an epic.
 type EpicPipeline struct {
 	SubTasks []struct {
@@ -50,6 +64,7 @@ type EpicPipeline struct {
 
 // updateState writes the current pipeline stage to workspace/state.json.
 func updateState(stage Stage, retry int) {
+	pipelineTelemetry.StagesExecuted = append(pipelineTelemetry.StagesExecuted, fmt.Sprintf("%s (%s)", stage, time.Now().Format(time.RFC3339)))
 	state := WorkflowState{
 		TaskID:       "cti_modular_self_healing",
 		CurrentStage: stage,
@@ -103,18 +118,35 @@ Identify structural dependencies, package reusability, or architectural correlat
 // callOllama sends a prompt to the local CLI binary (e.g., ollama).
 func callOllama(agent, modelName, systemPrompt, userPrompt string) (string, error) {
 	fullPrompt := fmt.Sprintf("SYSTEM INSTRUCTIONS:\n%s\n\nUSER INPUT:\n%s", systemPrompt, userPrompt)
-	
+
 	cmd := exec.Command(agent, "run", modelName, fullPrompt)
 	var out bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
-	
+
 	if err := cmd.Run(); err != nil {
 		return "", fmt.Errorf("ollama CLI error: %v, stderr: %s", err, stderr.String())
 	}
-	
+
 	return strings.TrimSpace(out.String()), nil
+}
+
+func countGeneratedLines() int {
+	var count int
+	_ = filepath.Walk("workspace", func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if !info.IsDir() && strings.HasSuffix(info.Name(), ".go") {
+			content, err := os.ReadFile(path)
+			if err == nil {
+				count += len(strings.Split(string(content), "\n"))
+			}
+		}
+		return nil
+	})
+	return count
 }
 
 // runCoreHarnessLoop runs the core Development, QA, HITL, DevOps, and Memory Progression loop
@@ -159,10 +191,14 @@ func runCoreHarnessLoop(devAgentCmd string, cfg Config) {
 		if err := cmdQA.Run(); err != nil {
 			fmt.Printf("⚠️ Tests failed on attempt %d! Writing to qa_error.log for AI self-healing...\n", retry+1)
 			_ = os.WriteFile("workspace/qa_error.log", errQA.Bytes(), 0644)
+			pipelineTelemetry.TotalRetriesUsed++
 			time.Sleep(2 * time.Second)
 		} else {
 			fmt.Println("🎉 Excellent! 100% of the automated QA Test Suite passed.")
 			_ = os.Remove("workspace/qa_error.log")
+			if retry > 0 {
+				pipelineTelemetry.CodeHealingSuccess = true
+			}
 			success = true
 			break
 		}
@@ -245,8 +281,8 @@ func runCoreHarnessLoop(devAgentCmd string, cfg Config) {
 					if cfg.DevOps.MCPConfig != "" {
 						fmt.Printf("🚀 Triggering dev_agent to update Linear ticket %s...\n", ticketID)
 						linearPrompt := fmt.Sprintf("Tests passed and feature '%s' is complete. Please update the Linear ticket %s with the following release notes:\n%s", parsedFeatureName, ticketID, releaseNotes)
-						
-						// Note: The dev_agent (e.g., agy) does not natively support an isolated --config flag. 
+
+						// Note: The dev_agent (e.g., agy) does not natively support an isolated --config flag.
 						// If MCP tools are required, they must be configured globally via the agent's CLI (e.g., 'agy mcp add').
 						cmdLinear := exec.Command(devAgentCmd, "--print", linearPrompt)
 						var outLinear bytes.Buffer
@@ -308,6 +344,12 @@ func runCoreHarnessLoop(devAgentCmd string, cfg Config) {
 	updateState(StageCompact, 0)
 	updateSystemMemory(cfg.DevOps.Agent, cfg.DevOps.ModelName)
 	compactSystemMemory(cfg.DevOps.Agent, cfg.DevOps.ModelName)
+
+	pipelineTelemetry.TotalDurationSeconds = time.Since(pipelineStartTime).Seconds()
+	pipelineTelemetry.LinesOfCodeGenerated = countGeneratedLines()
+	pipelineTelemetry.Timestamp = time.Now().Format(time.RFC3339)
+	telemetryBytes, _ := json.MarshalIndent(pipelineTelemetry, "", "  ")
+	_ = os.WriteFile("workspace/telemetry.json", telemetryBytes, 0644)
 
 	updateState(StageDone, 0)
 	fmt.Println("\n🎯 SPRINT PIPELINE RUN COMPLETE. Check your /workspace folder for final artifacts!")
@@ -393,6 +435,7 @@ type Config struct {
 }
 
 func main() {
+	pipelineStartTime = time.Now()
 	// Default configuration
 	cfg := Config{
 		BA: BAConfig{
