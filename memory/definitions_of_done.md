@@ -1,31 +1,27 @@
-# Definition of Done: Simple Gomoku (Go-moku) Game
+# Definition of Done: Fibonacci Function Implementation
 
-## 1. Core Game Logic & Engine
-- [ ] **Grid Implementation:** Scalable 15x15 board matrix initialization (standard Gomoku size).
-- [ ] **Move Validation:** Implementation of coordinate-based placement logic with collision detection (preventing overwriting existing stones).
-- [ ] **Win Condition Algorithm:** Optimized linear/diagonal scanning algorithm to detect exactly five consecutive stones of the same color (horizontal, vertical, diagonal).
-- [ ] **Turn Management:** Atomic state transitions between Black (Player 1) and White (Player 2) with turn-tracking.
-- [ ] **Draw Condition:** Logic to handle full-board scenarios where no win condition is met.
+## 1. Core Logic & Algorithm
+- [ ] **Algorithm Selection:** Implementation of an efficient Fibonacci algorithm (e.g., Iterative for O(n) time/O(1) space or Matrix Exponentiation for O(log n) time).
+- [ ] **Data Type Handling:** Use of arbitrary-precision integers (e.g., `math/big` in Go) to prevent overflow for large `n`.
+- [ ] **Input Validation:** Strict validation for non-negative integer inputs ($n \ge 0$); return clear error/exception for negative values or non-integer types.
+- [ ] **Base Case Integrity:** Explicit handling of $F(0) = 0$ and $F(1) = 1$.
 
-## 2. Technical Architecture (Go/CLI)
-- [ ] **Domain Modeling:** Clear separation between Game Engine (logic) and User Interface (rendering).
-- [ ] **Concurrency Safety:** Ensure state mutations are thread-safe if handling asynchronous inputs.
-- [ ] **Error Handling:** Robust validation for out-of-bounds inputs and invalid move formats.
-- [ ] **State Management:** Immutable or strictly controlled state updates to facilitate move history or "undo" functionality.
+## 2. Technical Architecture & Integration
+- [ ] **Interface Definition:** Clean, typed function signature (e.g., `func Fibonacci(n int) (*big.Int, error)`).
+- [ ] **Statelessness:** Ensure the core function is side-effect free and deterministic.
+- [ ] **Optimization (Caching):** Implementation of memoization if the function is part of a recursive or frequently-called API to ensure $O(1)$ retrieval for previously computed values.
+- [ ] **Resource Management:** Bounded execution time and memory usage for extremely large $n$ to prevent stack overflow or heap exhaustion.
 
-## 3. Interface & UX (Terminal/CLI)
-- [ ] **Board Rendering:** Dynamic CLI rendering of the board using ASCII/Unicode characters for clarity (e.g., `+`, `●`, `○`).
-- [ ] **Coordinate System:** Standard alphanumeric notation (e.g., A1-O15) or intuitive index-based input.
-- [ ] **Visual Feedback:** Clear indication of current player, last move made, and game status (Active, Win, Draw).
-- [ ] **Input Sanitization:** Regex-based validation for user input strings to prevent runtime crashes.
+## 3. Quality Assurance & Testing
+- [ ] **Unit Tests:** 100% path coverage including:
+    - [ ] Base cases: $n=0, n=1$.
+    - [ ] Standard cases: $n=2, n=10$.
+    - [ ] Large cases: $n=92$ (max uint64) and $n > 100$ (big int verification).
+- [ ] **Property-Based Testing:** Validation of the property $F(n) = F(n-1) + F(n-2)$ for random $n > 1$.
+- [ ] **Performance Benchmarks:** Execution time measurements for $n=1,000$, $n=10,000$, and $n=100,000$ to ensure linear or logarithmic scaling.
+- [ ] **Static Analysis:** Zero violations from project-standard linters (e.g., `staticcheck`, `golangci-lint`).
 
-## 4. Quality Assurance & Testing
-- [ ] **Unit Tests:** Coverage for win-detection edge cases (e.g., edge of board, intersecting lines, "overline" scenarios if applicable).
-- [ ] **Integration Tests:** Simulated game flows from start to win/draw.
-- [ ] **Benchmark:** Ensure win-checking logic completes in O(1) or O(N) relative to move placement for zero-latency gameplay.
-- [ ] **Linter Compliance:** Zero warnings from `golangci-lint` or equivalent project-standard tool.
-
-## 5. Documentation & Delivery
-- [ ] **README.md:** Detailed instructions on how to build, run, and play the game.
-- [ ] **Binary Compilation:** Verified `go build` output for target architecture.
-- [ ] **Clean Exit:** Implementation of graceful shutdown and signal handling (e.g., Ctrl+C).
+## 4. Documentation & Maintenance
+- [ ] **Code Documentation:** Standard-compliant docstrings explaining complexity (Big O notation), constraints, and error conditions.
+- [ ] **Example Usage:** Included testable examples or README snippets demonstrating library integration.
+- [ ] **Type Safety:** Verified exports and visibility modifiers adhere to the project's encapsulation standards.

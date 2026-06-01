@@ -133,6 +133,43 @@ func callOllama(agent, modelName, systemPrompt, userPrompt string) (string, erro
 	return strings.TrimSpace(out.String()), nil
 }
 
+// AuditGeneratedCode scans the workspace for security risks and forbidden patterns.
+func AuditGeneratedCode(directory string) error {
+	var auditErr error
+	_ = filepath.Walk(directory, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() || !strings.HasSuffix(info.Name(), ".go") {
+			return nil
+		}
+
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+		code := string(content)
+		lowerCode := strings.ToLower(code)
+
+		if strings.Contains(code, "\"os/exec\"") || strings.Contains(code, "exec.Command") {
+			auditErr = fmt.Errorf("file %s invokes forbidden package os/exec", path)
+			return fmt.Errorf("audit failure")
+		}
+		if strings.Contains(code, "rm -rf") {
+			auditErr = fmt.Errorf("file %s contains destructive terminal command 'rm -rf'", path)
+			return fmt.Errorf("audit failure")
+		}
+		if strings.Contains(code, "os.Remove(") || strings.Contains(code, "os.RemoveAll(") || strings.Contains(code, "os.Rename(") {
+			auditErr = fmt.Errorf("file %s contains unauthorized filesystem manipulation", path)
+			return fmt.Errorf("audit failure")
+		}
+		if strings.Contains(lowerCode, "password =") || strings.Contains(lowerCode, "secret =") || strings.Contains(lowerCode, "aws_access_key") {
+			auditErr = fmt.Errorf("file %s contains potential hardcoded credentials", path)
+			return fmt.Errorf("audit failure")
+		}
+
+		return nil
+	})
+	return auditErr
+}
+
 func countGeneratedLines() int {
 	var count int
 	_ = filepath.Walk("workspace", func(path string, info os.FileInfo, err error) error {
@@ -184,6 +221,17 @@ func runCoreHarnessLoop(devAgentCmd string, cfg Config) {
 
 			// PHASE 2: QA VERIFICATION (TEST SUITE)
 			updateState(StageQA, retry)
+
+			fmt.Println("🛡️ Running Security Audit Guardrails...")
+			if auditErr := AuditGeneratedCode("workspace"); auditErr != nil {
+				fmt.Printf("⚠️ Security audit failed on attempt %d! Writing to qa_error.log for AI self-healing...\n", retry+1)
+				errMsg := fmt.Sprintf("SECURITY AUDIT FAILURE: %v\n", auditErr)
+				_ = os.WriteFile("workspace/qa_error.log", []byte(errMsg), 0644)
+				pipelineTelemetry.TotalRetriesUsed++
+				time.Sleep(2 * time.Second)
+				continue
+			}
+
 			fmt.Println("🕵️ Running automated test verification: go test -v ./workspace/...")
 
 			cmdQA := exec.Command("go", "test", "-v", "./workspace/...")

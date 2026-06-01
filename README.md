@@ -7,11 +7,13 @@ Welcome to the **Harness Orchestration System**, a robust, state-aware automatio
 ## 🚀 Key Features
 
 ### 1. 🔄 Multi-Stage Orchestration Pipeline (`main.go` at root)
-The main orchestrator transitions autonomously through defined pipeline states, persisting its current state to `workspace/state.json`:
+The main orchestrator transitions autonomously through defined pipeline states, persisting its current state to `workspace/state.json`. It now features advanced **Telemetry Tracking** to export runtime metrics (like generated LOC, timestamps, and self-healing success rates) to `workspace/telemetry.json`.
 *   **`DEV_CODING`**: Invokes the configured developer agent (`agy` CLI by default) to synthesize and self-verify project files.
-*   **`QA_TESTING`**: Automatically executes the repository's test hooks (`go test -v ./workspace/...`). If tests fail, errors are logged to `workspace/qa_error.log`.
+*   **`SECURITY_AUDIT`**: An integrated guardrail that intercepts execution before QA to strictly analyze generated `.go` files for forbidden imports (like `os/exec`), destructive commands, or hardcoded credentials. It fails the build immediately on violation to initiate a safe healing cycle.
+*   **`QA_TESTING`**: Automatically executes the repository's test hooks (`go test -v ./workspace/...`). If tests fail, errors are logged to `workspace/qa_error.log` for AI self-healing.
+*   **`BA_REFACTOR` (Delegation Protocol)**: A dynamic non-linear delegation loop. If the Developer agent exhausts its QA healing retries, the orchestrator safely delegates back to the BA agent (Gemini) to rewrite and clarify the `definitions_of_done.md` based on the compilation errors.
 *   **`DEVOPS_DELIVER`**: Calls a local Ollama instance running a configurable model to summarize the codebase changes and compile `workspace/RELEASE_NOTES.md`.
-*   **`COMPLETED`**: Finalizes the build and closes the loop.
+*   **`COMPLETED`**: Finalizes the build, exports pipeline telemetry, and closes the loop.
 
 ### 2. 🛡️ Security & Validation Modules (`workspace/`)
 A modular approach containing highly secure and robust validation components:
