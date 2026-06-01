@@ -20,12 +20,13 @@ import (
 type Stage string
 
 const (
-	StageDev     Stage = "DEV_CODING"
-	StageQA      Stage = "QA_TESTING"
-	StageHITL    Stage = "HUMAN_IN_THE_LOOP"
-	StageCompact Stage = "MEMORY_COMPACTION"
-	StageDevOps  Stage = "DEVOPS_DELIVER"
-	StageDone    Stage = "COMPLETED"
+	StageDev        Stage = "DEV_CODING"
+	StageQA         Stage = "QA_TESTING"
+	StageBARefactor Stage = "BA_REFACTOR"
+	StageHITL       Stage = "HUMAN_IN_THE_LOOP"
+	StageCompact    Stage = "MEMORY_COMPACTION"
+	StageDevOps     Stage = "DEVOPS_DELIVER"
+	StageDone       Stage = "COMPLETED"
 )
 
 const MaxRetries = 3
@@ -152,60 +153,97 @@ func countGeneratedLines() int {
 // runCoreHarnessLoop runs the core Development, QA, HITL, DevOps, and Memory Progression loop
 func runCoreHarnessLoop(devAgentCmd string, cfg Config) {
 	// =======================================================
-	// CORE LOOP: DEV 🔀 QA (SELF-HEALING)
+	// CORE LOOP: DEV 🔀 QA (SELF-HEALING) & DELEGATION
 	// =======================================================
 	_ = os.Remove("workspace/qa_error.log")
 	success := false
+	maxDelegations := 1
 
-	for retry := 0; retry < MaxRetries; retry++ {
-		// PHASE 1: DEVELOPMENT / REPAIR
-		updateState(StageDev, retry)
-		fmt.Printf("🤖 Activating %s CLI for Code Generation/Repair...\n", devAgentCmd)
+	for delegation := 0; delegation <= maxDelegations; delegation++ {
+		for retry := 0; retry < MaxRetries; retry++ {
+			// PHASE 1: DEVELOPMENT / REPAIR
+			updateState(StageDev, retry)
+			fmt.Printf("🤖 Activating %s CLI for Code Generation/Repair...\n", devAgentCmd)
 
-		devPrompt, err := os.ReadFile(".agents/antigravity_dev_prompt.md")
-		if err != nil {
-			log.Fatalf("❌ Missing configuration file: .agents/antigravity_dev_prompt.md")
-		}
-
-		cmdDev := exec.Command(devAgentCmd,
-			"--print", string(devPrompt),
-			"--dangerously-skip-permissions",
-			"--add-dir", "./workspace",
-			"--add-dir", "./memory",
-		)
-		// Pass model via environment variable — agy reads ANTIGRAVITY_MODEL at startup
-		if cfg.Dev.ModelName != "" {
-			cmdDev.Env = append(os.Environ(), "ANTIGRAVITY_MODEL="+cfg.Dev.ModelName)
-		}
-		_ = cmdDev.Run()
-
-		// PHASE 2: QA VERIFICATION (TEST SUITE)
-		updateState(StageQA, retry)
-		fmt.Println("🕵️ Running automated test verification: go test -v ./workspace/...")
-
-		cmdQA := exec.Command("go", "test", "-v", "./workspace/...")
-		var errQA bytes.Buffer
-		cmdQA.Stdout = &errQA
-		cmdQA.Stderr = &errQA
-
-		if err := cmdQA.Run(); err != nil {
-			fmt.Printf("⚠️ Tests failed on attempt %d! Writing to qa_error.log for AI self-healing...\n", retry+1)
-			_ = os.WriteFile("workspace/qa_error.log", errQA.Bytes(), 0644)
-			pipelineTelemetry.TotalRetriesUsed++
-			time.Sleep(2 * time.Second)
-		} else {
-			fmt.Println("🎉 Excellent! 100% of the automated QA Test Suite passed.")
-			_ = os.Remove("workspace/qa_error.log")
-			if retry > 0 {
-				pipelineTelemetry.CodeHealingSuccess = true
+			devPrompt, err := os.ReadFile(".agents/antigravity_dev_prompt.md")
+			if err != nil {
+				log.Fatalf("❌ Missing configuration file: .agents/antigravity_dev_prompt.md")
 			}
-			success = true
+
+			cmdDev := exec.Command(devAgentCmd,
+				"--print", string(devPrompt),
+				"--dangerously-skip-permissions",
+				"--add-dir", "./workspace",
+				"--add-dir", "./memory",
+			)
+			// Pass model via environment variable — agy reads ANTIGRAVITY_MODEL at startup
+			if cfg.Dev.ModelName != "" {
+				cmdDev.Env = append(os.Environ(), "ANTIGRAVITY_MODEL="+cfg.Dev.ModelName)
+			}
+			_ = cmdDev.Run()
+
+			// PHASE 2: QA VERIFICATION (TEST SUITE)
+			updateState(StageQA, retry)
+			fmt.Println("🕵️ Running automated test verification: go test -v ./workspace/...")
+
+			cmdQA := exec.Command("go", "test", "-v", "./workspace/...")
+			var errQA bytes.Buffer
+			cmdQA.Stdout = &errQA
+			cmdQA.Stderr = &errQA
+
+			if err := cmdQA.Run(); err != nil {
+				fmt.Printf("⚠️ Tests failed on attempt %d! Writing to qa_error.log for AI self-healing...\n", retry+1)
+				_ = os.WriteFile("workspace/qa_error.log", errQA.Bytes(), 0644)
+				pipelineTelemetry.TotalRetriesUsed++
+				time.Sleep(2 * time.Second)
+			} else {
+				fmt.Println("🎉 Excellent! 100% of the automated QA Test Suite passed.")
+				_ = os.Remove("workspace/qa_error.log")
+				if retry > 0 {
+					pipelineTelemetry.CodeHealingSuccess = true
+				}
+				success = true
+				break
+			}
+		}
+
+		if success {
 			break
+		}
+
+		if delegation < maxDelegations {
+			// Activate Delegation Protocol
+			updateState(StageBARefactor, delegation)
+			fmt.Println("🔄 Activating Delegation Protocol: BA Agent rewriting requirements...")
+
+			qaLogs, _ := os.ReadFile("workspace/qa_error.log")
+			dodContent, _ := os.ReadFile("memory/definitions_of_done.md")
+
+			baPrompt := fmt.Sprintf(`You are being delegated a failing task. Analyze why the engineer failed to build the code based on the compilation logs. Rewrite the requirements inside memory/definitions_of_done.md to clarify ambiguity, fix structural holes, or split the task safely.
+
+=== COMPILATION LOGS ===
+%s
+
+=== CURRENT REQUIREMENTS ===
+%s
+
+Output ONLY the strict markdown checklist content. Do not include any chat filler or explanations.`, string(qaLogs), string(dodContent))
+
+			baArgs := []string{"run", baPrompt}
+			cmdBA := exec.Command(cfg.BA.Agent, baArgs...)
+			var outBA, errBA bytes.Buffer
+			cmdBA.Stdout = &outBA
+			cmdBA.Stderr = &errBA
+			if err := cmdBA.Run(); err != nil {
+				fmt.Printf("⚠️ BA Agent failed during delegation: %v\n%s\n", err, errBA.String())
+			} else {
+				_ = os.WriteFile("memory/definitions_of_done.md", outBA.Bytes(), 0644)
+			}
 		}
 	}
 
 	if !success {
-		log.Fatalf("❌ [Harness Aborted] Agent attempted %d self-healing loops but failed QA. Manual intervention required!", MaxRetries)
+		log.Fatalf("❌ [Harness Aborted] Agent attempted %d self-healing loops and %d delegation cycles but failed QA. Manual intervention required!", MaxRetries, maxDelegations)
 	}
 
 	// =======================================================
@@ -467,6 +505,7 @@ func main() {
 	devOpsAgent := flag.String("devops-agent", cfg.DevOps.Agent, "CLI agent to execute for Phase 3 DevOps documentation (e.g., ollama)")
 	devOpsModel := flag.String("devops-model", cfg.DevOps.ModelName, "Model name to execute for Phase 3 DevOps documentation")
 	flag.Parse()
+	cfg.BA.Agent = *baAgentCmd
 
 	fmt.Println("🚀 ACTIVATING GO HARNESS PIPELINE v2026.1")
 	_ = os.MkdirAll("memory", 0755)
