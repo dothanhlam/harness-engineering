@@ -1,58 +1,48 @@
-The provided Go code implements a pseudo-random number generator (PRNG) pac[3D[K
-package with both linear congruential generator (LCG) and cryptographically[17D[K
-cryptographically secure pseudorandom number generator (CSPRNG) functionali[11D[K
-functionalities. It also includes a set of tests to validate the behavior a[1D[K
-and uniformity of the generated numbers, along with benchmarks for performa[8D[K
-performance evaluation.
+The provided code represents a comprehensive test suite for a pseudo-random[13D[K
+pseudo-random number generator (PRNG) and a cryptographically secure pseudo[6D[K
+pseudo-random number generator (CSPRNG) in Go. It includes various tests to[2D[K
+to ensure the correctness, thread safety, and uniform distribution of gener[5D[K
+generated numbers.
 
-Key components and functionalities:
+Here's an overview of what each part of the code does:
 
-1. **Linear Congruential Generator (LCG):** The `NewGenerator` function all[3D[K
-allows creating instances of the LCG PRNG with configurable multipliers and[3D[K
-and increments. This is used for generating pseudo-random integers within s[1D[K
-specified ranges (`IntRange`).
+1. **PRNG Functionality Tests**:
+   - `TestConcurrency`: This test ensures that multiple goroutines can safe[4D[K
+safely use the PRNG functions without any race conditions.
+   - Other tests like `TestCryptoBytesSuccess`, `TestCryptoIntRangeSuccess`[27D[K
+`TestCryptoIntRangeSuccess`, and `TestCryptoFloat` verify the success behav[5D[K
+behavior of generating random bytes, integers within specified ranges, and [K
+floating-point numbers using CSPRNG.
 
-2. **Cryptographically Secure Pseudorandom Number Generator (CSPRNG):** Fun[3D[K
-Functions like `CryptoIntRange`, `CryptoFloat`, and `CryptoBytes` utilize t[1D[K
-the system's secure random source to generate cryptographically strong pseu[4D[K
-pseudo-random numbers, ensuring better unpredictability and security compar[6D[K
-compared to LCG-based PRNGs.
+2. **Uniform Distribution Tests**:
+   - `TestChiSquaredUniformDistribution`: This test uses a chi-squared good[4D[K
+goodness-of-fit test to validate that the PRNG outputs follow a uniform dis[3D[K
+distribution over a specific range.
+   - `TestChiSquaredCryptoUniformDistribution`: Similar to the above, but f[1D[K
+for CSPRNG output distributions.
 
-3. **Error Handling:** The package includes custom error types for handling[8D[K
-handling invalid operations or seed values (`ErrInvalidSeed`), and ensures [K
-proper error propagation throughout its API.
+3. **Custom Seeded Local Instance Test**:
+   - `TestCustomSeededLocalInstance`: This test verifies that generators se[2D[K
+seeded with the same values produce identical outputs, and different seeds [K
+lead to distinct sequences.
 
-4. **Seeding Mechanism:** For reproducibility and in scenarios where predic[6D[K
-predictable sequences are needed, the `NewGenerator` function allows seedin[6D[K
-seeding the PRNG with specific initial states. It also supports auto-seedin[11D[K
-auto-seeding for instances when 0s are used as seeds, indicating the system[6D[K
-system should automatically generate a seed.
+4. **Auto-Seeding Test**:
+   - `TestAutoSeeding`: Tests the behavior when using default (0) seed valu[4D[K
+values for generating instances of PRNGs, ensuring they correctly auto-seed[9D[K
+auto-seed to a different state.
 
-5. **Concurrency Safety:** The design ensures that multiple concurrent acce[4D[K
-accesses to shared resources (if any) do not lead to race conditions or inv[3D[K
-invalid memory accesses.
+5. **Benchmarks**:
+   - `BenchmarkIntRange`, `BenchmarkFloat`, and `BenchmarkBytes32`: These b[1D[K
+benchmarks measure the performance of the respective functions by running t[1D[K
+them a specified number of times (N) within the benchmark test.
 
-6. **Tests and Validation:** The code includes comprehensive test suites (`[2D[K
-(`TestXX` functions), covering basic functionality checks, uniform distribu[8D[K
-distribution validation using Chi-squared tests for both LCG and CSPRNG out[3D[K
-outputs, as well as concurrency safety. These tests help ensure the quality[7D[K
-quality and robustness of the PRNG package.
+The tests use various statistical methods, including chi-squared tests for [K
+goodness-of-fit to ensure that the PRNG and CSPRNG are generating numbers u[1D[K
+uniformly across their ranges. The concurrency test checks if multiple conc[4D[K
+concurrent users can safely interact with the PRNG without interference or [K
+race conditions.
 
-7. **Benchmarks:** Performance benchmarks (`BenchmarkXX`) are provided to m[1D[K
-measure and compare the efficiency of different operations (e.g., `IntRange[9D[K
-`IntRange`, `Float`, `Bytes32`).
-
-8. **Predictability Test:** A test for checking if two instances of the LCG[3D[K
-LCG seeded with the same values produce identical sequences is included, al[2D[K
-along with a test for ensuring that differently seeded generators do not pr[2D[K
-produce identical sequences.
-
-9. **Auto-Seeding Validation:** Tests to verify that when NewGenerator is c[1D[K
-called with 0 as both seeds, it correctly auto-seeds itself using secure ra[2D[K
-random sources.
-
-In summary, this Go code package offers a flexible and validated solution f[1D[K
-for generating pseudo-random numbers with a focus on both usability (for re[2D[K
-regular applications) and security (for cryptographic purposes). The inclus[6D[K
-inclusion of tests and benchmarks further enhances its reliability and perf[4D[K
-performance assessment.
+Overall, this suite provides a robust testing framework to validate both PR[2D[K
+PRNG and CSPRNG implementations against various stress tests, ensuring they[4D[K
+they meet expected behaviors for random number generation in a concurrent e[1D[K
+environment.

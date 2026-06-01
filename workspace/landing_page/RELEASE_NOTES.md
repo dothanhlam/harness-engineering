@@ -1,10 +1,9 @@
-# Release Note: Landing Page Feature
-
-- Next-generation responsive design for Harness Engineering marketing and t[1D[K
-technical landing page.
-- Added dynamic form validations for Name, Email, and Message fields on the[3D[K
-the contact form.
-- Asynchronous handling of contact form submissions to ensure secure transm[6D[K
-transmission.
-- Embedded static assets (`index.html`, `style.css`, and `app.js`) are serv[4D[K
-served with appropriate content types and headers.
+- Landing Page: Introduced a next-generation marketing and technical landin[6D[K
+landing page for Harness Engineering with premium, responsive design struct[6D[K
+structures.
+- Contact Form Handler: Integrated dynamic form validations and asynchronou[11D[K
+asynchronous contact form handlers for secure lead generation.
+- Static Asset Serving: Embedded static assets (index.html, style.css, app.[4D[K
+app.js) into the handler for seamless asset delivery.
+- API Contact Route: Provided a robust /api/contact endpoint supporting bot[3D[K
+both JSON and URL-encoded forms with stringent input validation checks.

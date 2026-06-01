@@ -6,31 +6,33 @@ Welcome to the **Harness Orchestration System**, a robust, state-aware automatio
 
 ## 🚀 Key Features
 
-### 1. 🔄 Multi-Stage Orchestration Pipeline (`main.go` at root)
+### 1. 🔄 Multi-Stage Orchestration Pipeline (`internal/pipeline/`)
 
 ```mermaid
 flowchart TD
     BA["1. BA STAGE (Gemini)<br>Read PRD -> Write memory/DoD"]
-    DEV["2. DEV STAGE (agy)<br>Generate code into subfolder"]
-    QA["3. QA STAGE (go test)<br>Auto-heal up to 3 times"]
-    AUDIT["4. GOVERNANCE & AUDIT GATE<br>Scan for malicious code & check security rules"]
-    HITL["5. HUMAN-IN-THE-LOOP<br>Manual terminal approval"]
-    DEVOPS["6. DEVOPS & MEMORY COMPACTION<br>Compress blueprint -> Linear MCP Update -> Export telemetry.json"]
+    DEV["2. DEV STAGE (claude)<br>Generate code into subfolder"]
+    QA["3. QA STAGE (go test)<br>Parallel Audit & Test Suite<br>Auto-heal up to 3 times"]
+    HITL["4. HUMAN-IN-THE-LOOP<br>Manual terminal approval"]
+    DEVOPS["5. DEVOPS & MEMORY COMPACTION<br>Compress blueprint -> Linear MCP Update -> Export telemetry.json"]
 
     BA --> DEV
     DEV --> QA
     QA -- "Delegation Loop (Fail)" --> BA
-    QA -- "Pass" --> AUDIT
-    AUDIT -- "Pass" --> HITL
+    QA -- "Pass" --> HITL
     HITL -- "Approve" --> DEVOPS
 ```
 
-The main orchestrator transitions autonomously through defined pipeline states, persisting its current state to `workspace/state.json`. It now features advanced **Telemetry Tracking** to export runtime metrics (like generated LOC, timestamps, and self-healing success rates) to `workspace/telemetry.json`.
-*   **`DEV_CODING`**: Invokes the configured developer agent (`agy` CLI by default) to synthesize and self-verify project files.
-*   **`SECURITY_AUDIT`**: An integrated guardrail that intercepts execution before QA to strictly analyze generated `.go` files for forbidden imports (like `os/exec`), destructive commands, or hardcoded credentials. It fails the build immediately on violation to initiate a safe healing cycle.
-*   **`QA_TESTING`**: Automatically executes the repository's test hooks (`go test -v ./workspace/...`). If tests fail, errors are logged to `workspace/qa_error.log` for AI self-healing.
-*   **`BA_REFACTOR` (Delegation Protocol)**: A dynamic non-linear delegation loop. If the Developer agent exhausts its QA healing retries, the orchestrator safely delegates back to the BA agent (Gemini) to rewrite and clarify the `definitions_of_done.md` based on the compilation errors.
-*   **`DEVOPS_DELIVER`**: Calls a local Ollama instance running a configurable model to summarize the codebase changes and compile `workspace/RELEASE_NOTES.md`.
+The orchestrator transitions autonomously through defined pipeline states (`internal/pipeline/stages.go`), persisting its current state to `workspace/state.json`. It features robust **Goroutine Concurrency** and **Mutex-protected Telemetry Tracking** to export runtime metrics to `workspace/telemetry.json`.
+*   **`DEV_CODING`**: Invokes the configured developer agent (`claude` CLI by default) to synthesize and self-verify project files. In Epic mode, this can run concurrently across isolated workspaces.
+*   **`QA_TESTING`**: Runs in parallel using goroutines:
+    *   **Security Audit**: Strictly analyzes generated `.go` files for forbidden imports (like `os/exec`), destructive commands, or hardcoded credentials.
+    *   **Test Suite**: Automatically executes the repository's test hooks (`go test -v ./workspace/...`). 
+    If QA fails, combined errors are logged to `workspace/qa_error.log` for AI self-healing.
+*   **`BA_REFACTOR` (Delegation Protocol)**: A dynamic non-linear delegation loop. If the Developer agent exhausts its QA healing retries, the orchestrator safely delegates back to the BA agent to rewrite and clarify the `definitions_of_done.md` based on the compilation errors.
+*   **`HUMAN_IN_THE_LOOP`**: Halts the pipeline, requiring user approval via terminal (auto-approves after 30s) before integration.
+*   **`DEVOPS_DELIVER`**: Calls a local Ollama instance to summarize the codebase changes and compile `workspace/RELEASE_NOTES.md`. Concurrently updates Linear tickets via a background goroutine.
+*   **`MEMORY_COMPACTION`**: Progressively updates and compresses the system blueprint memory sequentially.
 *   **`COMPLETED`**: Finalizes the build, exports pipeline telemetry, and closes the loop.
 
 ### 2. 🛡️ Security & Validation Modules (`workspace/`)
@@ -44,36 +46,35 @@ A modular approach containing highly secure and robust validation components:
 
 ## ⚙️ Configuration & Agent Switching
 
-You can switch the agents, models, and endpoints used in each phase dynamically using `config.json` at the root of the project, or via CLI flags which override the defaults:
+You can switch the agents, models, and endpoints used in each phase dynamically using `harness_config.json` at the root of the project, or via CLI flags which override the defaults:
 
 | Flag | Default Value | Description |
 |---|---|---|
 | `-task` | `""` | Raw requirement string. Triggers Phase 0 Business Analyst to update `definitions_of_done.md` |
-| `-epic` | `""` | Path to a directory containing epic requirements. Triggers the Epic Orchestrator for bulk decomposition and implementation. |
+| `-epic` | `""` | Path to a directory containing epic requirements. Triggers the Epic Orchestrator. |
+| `-parallel-epic` | `false` | Run epic sub-tasks concurrently with isolated memory workspaces. |
 | `-ba-agent` | `"gemini"` | Binary/CLI name used for Phase 0 Business Analyst |
-| `-dev-agent` | `"agy"` | Binary/CLI name used for Phase 1 Developer Coding |
-| `-devops-model` | `"hermes3:8b"`| Local Ollama model used for Phase 3 Release Notes |
-| `-devops-url` | `"http://localhost:11434/api/chat"` | Local Ollama HTTP API endpoint |
+| `-dev-agent` | `"claude"` | Binary/CLI name used for Phase 1 Developer Coding |
+| `-dev-model` | `"claude-sonnet-...` | Model name for the Dev agent |
+| `-devops-agent`| `"ollama"`| Binary/CLI name used for Phase 3 DevOps documentation |
+| `-devops-model`| `"hermes3:8b"`| Model name to execute for Phase 3 DevOps documentation |
 
 **Example usages:**
 ```bash
 # Run with standard agents, triggering the BA phase with a raw task requirement
 go run main.go -task "Create a secure bcrypt hashing module"
 
-# Trigger the Epic Orchestrator to decompose and implement a large folder of requirements
-go run main.go -epic "./requirements/auth_epic/"
+# Trigger the Epic Orchestrator to decompose and implement a large folder of requirements concurrently
+go run main.go -epic "./requirements/auth_epic/" -parallel-epic
 
-# Switch the dev coding agent to another CLI tool (e.g. customized-coder)
-go run main.go -dev-agent customized-coder
-
-# Switch the DevOps documentation model to llama3
-go run main.go -devops-model llama3
+# Switch the dev coding agent back to agy (if modified in harness_config.json)
+go run main.go -dev-agent agy -dev-model gemini-2.5-flash
 ```
 
 **Developer Agent Invocation:**
-The Developer phase leverages the `agy` CLI for autonomous execution, passing goals and granting restricted access:
+The Developer phase leverages the `claude` (or `agy`) CLI for autonomous execution, passing goals and granting restricted access via the DI `AgentSpec` pattern:
 ```bash
-agy --print "$DEV_PROMPT" --dangerously-skip-permissions --add-dir ./workspace --add-dir ./memory
+claude --print "$DEV_PROMPT" --model claude-sonnet-4-20250514 --dangerously-skip-permissions --add-dir ./workspace --add-dir ./memory
 ```
 
 ---
@@ -84,6 +85,13 @@ agy --print "$DEV_PROMPT" --dangerously-skip-permissions --add-dir ./workspace -
 harness-app/
 ├── .agents/
 │   └── antigravity_dev_prompt.md  # Autonomous Developer Agent configuration
+├── internal/                      # Modular Harness Orchestrator core
+│   ├── agent/                     # Pluggable CLI agent DI adapter
+│   ├── config/                    # JSON Configuration loader
+│   ├── memory/                    # System blueprint & AI compaction logic
+│   ├── pipeline/                  # Core loops (epic, sequential, parallel)
+│   ├── qa/                        # Concurrent security audit & test runner
+│   └── telemetry/                 # Mutex-protected execution metrics
 ├── memory/
 │   ├── definitions_of_done.md    # Product specifications & validation criteria
 │   ├── lessons_learned.md        # Debugging guidelines & operational history
@@ -94,9 +102,9 @@ harness-app/
 │   ├── password/                 # Modular package: Bcrypt Hashing
 │   ├── random/                   # Modular package: Random Generation
 │   └── state.json                # JSON active pipeline stage tracker
-├── config.json                   # Agent and Model default configurations
+├── harness_config.json           # Agent and Model configurations
 ├── go.mod                        # Module definition (github.com/dothanhlam/harness-app)
-├── main.go                       # Main Go Harness pipeline orchestrator
+├── main.go                       # Slim orchestrator entrypoint (~90 lines)
 └── README.md                     # Project documentation (this file)
 ```
 

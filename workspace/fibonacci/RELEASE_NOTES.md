@@ -1,21 +1,12 @@
-- **Feature Introduction**: Introducing the 'fibonacci' package which provi[5D[K
-provides high-performance, arbitrary-precision calculations for the Fibonac[7D[K
-Fibonacci sequence. The feature leverages an optimized fast doubling algori[6D[K
-algorithm, achieving O(log n) time complexity and utilizing thread-safe mem[3D[K
-memoization caching for O(1) retrieval of previously computed terms.
-- **Upper Limit Set**: To prevent resource exhaustion (both heap and CPU), [K
-a maximum input constraint (`MaxN`) of 500000 is implemented. This safeguar[8D[K
-safeguard ensures the system's stability by not allowing inputs larger than[4D[K
-than this limit.
-- **Error Handling**: The package includes robust error handling for negati[6D[K
-negative or excessively large inputs, returning `ErrNegativeInput` or `ErrI[5D[K
-`ErrInputTooLarge` respectively to maintain functionality integrity.
-- **Cache Implementation**: Employing a memoization cache (`fibCache`) prot[4D[K
-protects against redundant calculations and ensures efficient retrieval of [K
-previously calculated Fibonacci numbers. This cache is protected by a mutua[5D[K
-mutual exclusion lock (`cacheMu`) for thread safety, making it suitable for[3D[K
-for concurrent applications.
-- **Functionality Verification**: A suite of tests including base cases, la[2D[K
-large case validations, input validation checks, property-based testing for[3D[K
-for recurrence relation verification, and immutability assurance ensures th[2D[K
-the accuracy and reliability of the feature.
+- **Fibonacci Sequence Computation**: The package implements high-performan[14D[K
+high-performance, arbitrary-precision Fibonacci sequence computations. It u[1D[K
+uses an optimized fast doubling algorithm with O(log n) time complexity and[3D[K
+and memoization caching for O(1) retrieval of previously calculated terms.
+- **Input Validation**: Ensures the input 'n' is a non-negative integer (n [K
+>= 0), preventing resource exhaustion by capping it at MaxN (500,000).
+- **Thread Safety**: The cache used for memoization is protected against co[2D[K
+concurrent access, making the package safe to use in multi-threaded environ[7D[K
+environments.
+- **Extensive Testing**: Includes tests covering base and standard cases, l[1D[K
+large Fibonacci numbers, input validation, property-based validations, and [K
+immutability of returned values.
