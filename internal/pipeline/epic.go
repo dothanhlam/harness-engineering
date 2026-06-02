@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -248,9 +249,24 @@ func executeParallel(ep EpicPipeline, cfg config.Config, tracker *telemetry.Trac
 				return
 			}
 
-			sysPrompt := fmt.Sprintf("You are a deployment release manager. Generate a short, bulleted markdown release note based on the provided Go code for the feature '%s'. Keep it brief.", t.Name)
+			sysPrompt := fmt.Sprintf("You are a deployment release manager. Generate a short, bulleted markdown release note based on the provided Go code for the feature '%s'. Keep it brief. Be extremely concise. Return bullet points only. Limit your response to under 150 words. Do not write filler structural prose.", t.Name)
 			fullPrompt := fmt.Sprintf("SYSTEM INSTRUCTIONS:\n%s\n\nUSER INPUT:\n%s", sysPrompt, allCode)
-			releaseNotes, err := cfg.DevOps.Execute(fullPrompt)
+			
+			var releaseNotes string
+			var err error
+			if cfg.DevOps.Agent == "ollama" {
+				ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+				defer cancel()
+				releaseNotes, err = cfg.DevOps.ExecuteWithContext(ctx, fullPrompt)
+				if err != nil {
+					fmt.Println("⚠️ [OLLAMA THERMAL THROTTLING] DevOps agent timed out. Gracefully falling back to save CPU cycles...")
+					releaseNotes = "- DevOps auto-generation aborted (thermal fallback).\n- Check commits for details."
+					err = nil
+				}
+			} else {
+				releaseNotes, err = cfg.DevOps.Execute(fullPrompt)
+			}
+
 			if err != nil {
 				fmt.Printf("⚠️ DevOps failed for %s: %v\n", t.Name, err)
 				return

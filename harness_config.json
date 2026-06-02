@@ -5,15 +5,15 @@
     "cmd_template": ["run", "{prompt}"],
     "mcp_config": ".mcp/ba_notion.json"
   },
-  "dev": {
-    "_comment": "Dev agent: Claude CLI. model passed via --model flag.",
+  "_dev_claude_backup": {
+    "_comment": "INACTIVE — Previous dev agent: Claude CLI. Swap with 'dev' key to restore.",
     "agent": "claude",
     "model_name": "claude-sonnet-4-20250514",
     "cmd_template": ["--print", "{prompt}", "--model", "{model}", "--dangerously-skip-permissions", "--add-dir", "./workspace", "--add-dir", "./memory"],
     "mcp_config": ""
   },
-  "_dev_agy_backup": {
-    "_comment": "INACTIVE — Previous dev agent: agy CLI. Swap with 'dev' key to restore.",
+  "dev": {
+    "_comment": "Dev agent: agy CLI. Swap with '_dev_claude_backup' key to restore.",
     "agent": "agy",
     "model_name": "gemini-2.5-flash",
     "cmd_template": ["--print", "{prompt}", "--dangerously-skip-permissions", "--add-dir", "./workspace", "--add-dir", "./memory"],

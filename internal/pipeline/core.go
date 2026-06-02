@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -178,9 +179,24 @@ Output ONLY the strict markdown checklist content. Do not include any chat fille
 		}
 
 		if allCode != "" {
-			sysPrompt := fmt.Sprintf("You are a deployment release manager. Generate a short, bulleted markdown release note based on the provided Go code for the feature '%s'. Keep it brief.", parsedFeatureName)
+			sysPrompt := fmt.Sprintf("You are a deployment release manager. Generate a short, bulleted markdown release note based on the provided Go code for the feature '%s'. Keep it brief. Be extremely concise. Return bullet points only. Limit your response to under 150 words. Do not write filler structural prose.", parsedFeatureName)
 			fullPrompt := fmt.Sprintf("SYSTEM INSTRUCTIONS:\n%s\n\nUSER INPUT:\n%s", sysPrompt, allCode)
-			releaseNotes, errDevOps := cfg.DevOps.Execute(fullPrompt)
+			
+			var releaseNotes string
+			var errDevOps error
+			if cfg.DevOps.Agent == "ollama" {
+				ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+				defer cancel()
+				releaseNotes, errDevOps = cfg.DevOps.ExecuteWithContext(ctx, fullPrompt)
+				if errDevOps != nil {
+					fmt.Println("⚠️ [OLLAMA THERMAL THROTTLING] DevOps agent timed out. Gracefully falling back to save CPU cycles...")
+					releaseNotes = "- DevOps auto-generation aborted (thermal fallback).\n- Check commits for details."
+					errDevOps = nil
+				}
+			} else {
+				releaseNotes, errDevOps = cfg.DevOps.Execute(fullPrompt)
+			}
+			
 			notePath := fmt.Sprintf("%s/RELEASE_NOTES.md", targetSubfolder)
 			if errDevOps != nil {
 				fmt.Printf("⚠️ DevOps Agent communication failed for %s: %v\n", parsedFeatureName, errDevOps)
@@ -232,9 +248,24 @@ Output ONLY the strict markdown checklist content. Do not include any chat fille
 					continue
 				}
 
-				sysPrompt := fmt.Sprintf("You are a deployment release manager. Generate a short, bulleted markdown release note based on the provided Go code for the feature '%s'. Keep it brief.", feature)
+				sysPrompt := fmt.Sprintf("You are a deployment release manager. Generate a short, bulleted markdown release note based on the provided Go code for the feature '%s'. Keep it brief. Be extremely concise. Return bullet points only. Limit your response to under 150 words. Do not write filler structural prose.", feature)
 				fullPrompt := fmt.Sprintf("SYSTEM INSTRUCTIONS:\n%s\n\nUSER INPUT:\n%s", sysPrompt, allCode)
-				releaseNotes, errDevOps := cfg.DevOps.Execute(fullPrompt)
+				
+				var releaseNotes string
+				var errDevOps error
+				if cfg.DevOps.Agent == "ollama" {
+					ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+					defer cancel()
+					releaseNotes, errDevOps = cfg.DevOps.ExecuteWithContext(ctx, fullPrompt)
+					if errDevOps != nil {
+						fmt.Println("⚠️ [OLLAMA THERMAL THROTTLING] DevOps agent timed out. Gracefully falling back to save CPU cycles...")
+						releaseNotes = "- DevOps auto-generation aborted (thermal fallback).\n- Check commits for details."
+						errDevOps = nil
+					}
+				} else {
+					releaseNotes, errDevOps = cfg.DevOps.Execute(fullPrompt)
+				}
+
 				notePath := fmt.Sprintf("workspace/%s/RELEASE_NOTES.md", feature)
 				if errDevOps != nil {
 					fmt.Printf("⚠️ DevOps Agent communication failed for %s: %v\n", feature, errDevOps)

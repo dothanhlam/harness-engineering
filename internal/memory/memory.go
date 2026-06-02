@@ -38,7 +38,8 @@ func CompactSystemMemory(devopsAgent *agent.AgentSpec) {
 	fmt.Println("🧹 [MEMORY COMPACTION] System memory is getting too long. Activating AI optimization...")
 	sysPrompt := `You are an Enterprise System Architect. The system blueprint memory is getting too long. 
 Review the entire text and compress older historical feature logs into a single unified 'Current System Architecture Map' section. 
-Keep the latest 2 features fully intact, but summarize all previous ones into architectural line items. Return ONLY the new compact markdown.`
+Keep the latest 2 features fully intact, but summarize all previous ones into architectural line items. Return ONLY the new compact markdown.
+Be extremely concise. Return bullet points only. Limit your response to under 150 words. Do not write filler structural prose.`
 
 	fullPrompt := fmt.Sprintf("SYSTEM INSTRUCTIONS:\n%s\n\nUSER INPUT:\n%s", sysPrompt, string(data))
 	compacted, err := devopsAgent.Execute(fullPrompt)

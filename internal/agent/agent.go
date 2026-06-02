@@ -2,7 +2,9 @@ package agent
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -20,6 +22,11 @@ type AgentSpec struct {
 // Execute runs the agent CLI with the given prompt, replacing template tokens dynamically.
 // Supported tokens: {prompt}, {model}, {mcp}
 func (a *AgentSpec) Execute(prompt string) (string, error) {
+	return a.ExecuteWithContext(context.Background(), prompt)
+}
+
+// ExecuteWithContext runs the agent CLI with a given context, for timeouts and cancellation.
+func (a *AgentSpec) ExecuteWithContext(ctx context.Context, prompt string) (string, error) {
 	if len(a.CmdTemplate) == 0 {
 		return "", fmt.Errorf("agent %s has no cmd_template defined", a.Agent)
 	}
@@ -32,7 +39,7 @@ func (a *AgentSpec) Execute(prompt string) (string, error) {
 		finalArgs = append(finalArgs, arg)
 	}
 
-	cmd := exec.Command(a.Agent, finalArgs...)
+	cmd := exec.CommandContext(ctx, a.Agent, finalArgs...)
 
 	if len(a.Env) > 0 {
 		envVars := os.Environ()
@@ -47,8 +54,10 @@ func (a *AgentSpec) Execute(prompt string) (string, error) {
 
 	var out bytes.Buffer
 	var stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
+	
+	// Bind directly to os terminal while still capturing output for returns
+	cmd.Stdout = io.MultiWriter(os.Stdout, &out)
+	cmd.Stderr = io.MultiWriter(os.Stderr, &stderr)
 
 	if err := cmd.Run(); err != nil {
 		return "", fmt.Errorf("%s CLI error: %v, stderr: %s", a.Agent, err, stderr.String())

@@ -1,39 +1,51 @@
-# Definition of Done: Tower of Hanoi Implementation
+# Definition of Done: Factorial Function Implementation
 
 ## 1. Functional Requirements
-- [ ] Implement the core recursive algorithm for the Tower of Hanoi problem.
-- [ ] Support dynamic input for the number of disks ($n$).
-- [ ] Define and manage three distinct rods: `Source`, `Auxiliary`, and `Destination`.
-- [ ] Ensure the algorithm preserves the fundamental constraint: A larger disk can never be placed on top of a smaller disk.
-- [ ] Output a deterministic sequence of moves representing the optimal solution.
+- [ ] Implement the core mathematical logic for calculating the factorial of a non-negative integer ($n!$).
+- [ ] Support calculation for $n = 0$ (result must be $1$).
+- [ ] Support calculation for $n = 1$ (result must be $1$).
+- [ ] Ensure the implementation accurately returns the product of all positive integers less than or equal to $n$.
 
-## 2. Technical Specifications
-- [ ] **Algorithm Efficiency:** Verify Time Complexity is exactly $O(2^n)$.
-- [ ] **Memory Management:** Verify Space Complexity is $O(n)$ representing the maximum recursion depth.
-- [ ] **Input Validation:** 
-    - [ ] Handle $n = 0$ as a no-op or empty move set.
-    - [ ] Provide error handling or constraints for negative integers.
-    - [ ] Implement a logical upper bound for $n$ to prevent stack overflow or excessive execution time in a CLI environment.
-- [ ] **Data Structures:** Use idiomatic Go slices or custom structs to represent the state of rods if state tracking is required.
+## 2. Technical Specifications & Error Handling
+- [ ] **Algorithm Efficiency:**
+    - [ ] Implement with $O(n)$ Time Complexity.
+    - [ ] Optimize for $O(1)$ Space Complexity by using an iterative approach to avoid stack overhead.
+- [ ] **Data Types & Overflow:**
+    - [ ] Use `uint64` for primary implementation.
+    - [ ] **Overflow Detection:** Explicitly detect and return an error when $n!$ exceeds `math.MaxUint64` (e.g., for $n > 20$).
+    - [ ] **Negative Input:** Reject negative integers with a specific error message or constant.
+- [ ] **(Optional) Arbitrary Precision:** 
+    - [ ] If required for $n > 20$, provide a secondary implementation or method using `math/big`.
 
-## 3. Code Quality & Standards
-- [ ] Code follows standard Go formatting (`go fmt`).
-- [ ] All public functions and types include Godoc-compliant comments.
-- [ ] Variable naming reflects algorithmic domain (e.g., `source`, `target`, `aux`).
-- [ ] No use of global state; the solver should be encapsulated and re-entrant.
+## 3. Workspace & Module Configuration
+- [ ] **Module Boundary Fix:** Ensure `workspace/go.mod` is correctly initialized and contains the necessary module path (e.g., `harness/workspace`).
+- [ ] **Pathing Resolution:** Resolve the compilation error where the root module fails to find `./workspace/...` as a package. 
+    - [ ] Either initialize a `go.work` file in the project root to include `./` and `./workspace`.
+    - [ ] Or ensure the build/test commands are executed from the correct module root (`/workspace`).
+- [ ] **Dependency Hygiene:** Run `go mod tidy` in the `workspace` directory to ensure `go.sum` is synchronized.
 
-## 4. Testing & Validation
-- [ ] **Unit Tests:** Implement tests for $n=1, 2, 3$.
-- [ ] **Mathematical Verification:** Assert that the length of the move sequence equals $2^n - 1$.
-- [ ] **State Validation:** (Optional/Advanced) Verify the rod state after each move to ensure no rule violations occurred during execution.
-- [ ] **Performance Benchmarking:** Include `go test -bench` for $n=10$ and $n=20$ to establish a performance baseline.
+## 4. Code Quality & Standards
+- [ ] Code adheres to `go fmt` and `go vet` standards.
+- [ ] Public functions are documented following Godoc conventions.
+- [ ] Variable naming is idiomatic (e.g., `n`, `result`, `err`).
+- [ ] Logic is stateless and safe for concurrent execution.
 
-## 5. Documentation & Workspace Integration
-- [ ] `workspace/hanoi/hanoi.go`: Primary implementation.
-- [ ] `workspace/hanoi/hanoi_test.go`: Comprehensive test suite.
-- [ ] `workspace/hanoi/README.md`: Instructions on how to run the algorithm and complexity analysis.
-- [ ] `workspace/hanoi/RELEASE_NOTES.md`: Document the initial release and any specific constraints.
+## 5. Testing & Validation
+- [ ] **Unit Tests:**
+    - [ ] **Base Cases:** $n=0, n=1$.
+    - [ ] **Standard Cases:** $n=5, n=10$.
+    - [ ] **Boundary Cases:** Max $n$ before overflow ($n=20$ for `uint64`).
+- [ ] **Negative Scenarios:** Assert that negative inputs and overflow conditions return expected errors.
+- [ ] **Verified Build Command:** Confirm that `go test ./...` executes successfully from within the `workspace` directory.
+- [ ] **Performance Benchmarking:** Include `BenchmarkFactorial` to verify $O(n)$ scaling.
 
-## 6. Definitions of Success
-- [ ] The algorithm successfully moves $n$ disks from Source to Destination in the minimum number of steps.
-- [ ] The code is integrated into the `harness-engineering` workspace structure without breaking existing builds.
+## 6. Documentation & Integration
+- [ ] `workspace/factorial/factorial.go`: Core logic.
+- [ ] `workspace/factorial/factorial_test.go`: Tests and benchmarks.
+- [ ] `workspace/factorial/README.md`: Technical overview and complexity analysis.
+- [ ] `workspace/factorial/RELEASE_NOTES.md`: Known constraints (e.g., max $n$ for `uint64`).
+
+## 7. Definitions of Success
+- [ ] The code compiles without "directory prefix does not contain main module" errors.
+- [ ] All tests pass with 100% coverage on mathematical edge cases.
+- [ ] The module structure is clean, following Go's multi-module or workspace best practices.
