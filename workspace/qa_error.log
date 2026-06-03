@@ -1,0 +1,5 @@
+TEST FAILURE:
+# ./workspace/...
+pattern ./workspace/...: directory prefix workspace does not contain main module or its selected dependencies
+FAIL	./workspace/... [setup failed]
+FAIL
