@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Harness Cyber-Flap — Next-Gen Game Engine</title>
+    <meta name="description" content="Play Harness Cyber-Flap, a premium, low-latency, thread-safe arcade physics demo running on the Harness Automation Engine.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Background cyber grid decoration -->
+    <div class="grid-background"></div>
+    <div class="glow-orb glow-orb-1"></div>
+    <div class="glow-orb glow-orb-2"></div>
+
+    <div class="game-container">
+        <!-- Header status bar -->
+        <header class="game-header">
+            <div class="brand">
+                <span class="pulse-dot"></span>
+                <span class="brand-title">HARNESS // CYBER_FLAP v1.0</span>
+            </div>
+            <div class="latency-indicator">
+                LATENCY: <span id="latency-val">0.0ms</span>
+            </div>
+        </header>
+
+        <!-- Canvas viewport -->
+        <div class="viewport-wrapper">
+            <canvas id="gameCanvas" width="480" height="640"></canvas>
+
+            <!-- START SCREEN OVERLAY -->
+            <div id="startOverlay" class="overlay glass active">
+                <div class="overlay-content">
+                    <h1 class="glitch-text" data-text="CYBER_FLAP">CYBER_FLAP</h1>
+                    <p class="subtitle">RETRO-FUTURE PHYSICS ENGINE</p>
+                    
+                    <div class="info-box">
+                        <div class="info-row">
+                            <span class="info-label">ENGINE:</span>
+                            <span class="info-value text-cyan">GO / HARNESS_CORE</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">PHYSICS:</span>
+                            <span class="info-value text-magenta">EULER / DELTA_T</span>
+                        </div>
+                    </div>
+
+                    <div class="instruction-box">
+                        <span class="action-btn">SPACE</span> or <span class="action-btn">CLICK</span> TO FLAP
+                    </div>
+
+                    <button id="startButton" class="btn btn-primary">INITIALIZE SEQUENCE</button>
+                </div>
+            </div>
+
+            <!-- GAME OVER OVERLAY -->
+            <div id="gameOverOverlay" class="overlay glass">
+                <div class="overlay-content">
+                    <h2 class="text-danger glow-red">SEQUENCE TERMINATED</h2>
+                    <p class="subtitle">COLLISION DETECTED</p>
+
+                    <div class="stats-card">
+                        <div class="stat-item">
+                            <span class="stat-label">FINAL SCORE</span>
+                            <span id="finalScore" class="stat-value text-cyan">0</span>
+                        </div>
+                        <div class="stat-item border-left">
+                            <span class="stat-label">HIGH SCORE</span>
+                            <span id="highScore" class="stat-value text-magenta">0</span>
+                        </div>
+                    </div>
+
+                    <div class="audio-toggle-container">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="audioToggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                        <span class="toggle-label">SYNTHETIC SFX ENGINE</span>
+                    </div>
+
+                    <button id="restartButton" class="btn btn-danger">REBOOT ENGINE</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- System specs footer -->
+        <footer class="game-footer">
+            <div class="spec-item">
+                <span class="spec-label">FPS:</span>
+                <span id="fps-val" class="spec-value">60</span>
+            </div>
+            <div class="spec-item">
+                <span class="spec-label">GRAVITY:</span>
+                <span class="spec-value">800.0 px/s²</span>
+            </div>
+            <div class="spec-item">
+                <span class="spec-label">VEL_IMPULSE:</span>
+                <span class="spec-value">-250.0 px/s</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="app.js"></script>
+</body>
+</html>

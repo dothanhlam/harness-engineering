@@ -34,7 +34,7 @@ Hệ thống sẽ phân rã tất cả các tệp trong thư mục thành các t
 
 ## Đầu ra nằm ở đâu?
 
-* **`memory/`**: Đây là nơi AI lưu trữ ngữ cảnh của nó. Bạn sẽ tìm thấy `definitions_of_done.md` (danh sách kiểm tra) và `system_blueprint.md` (bản đồ kiến trúc).
+* **`memory/`**: Đây là nơi AI lưu trữ ngữ cảnh của nó. Bạn sẽ tìm thấy `definitions_of_done.md` (danh sách kiểm tra) và `mem0-server/` lưu trữ vector kiến trúc.
 * **`workspace/`**: Đây là nơi mã Go thực tế được tạo ra. Mỗi tính năng sẽ có một thư mục con sạch sẽ riêng.
 * **`workspace/telemetry.json`**: Kiểm tra tệp này để xem đường ống mất bao lâu, bao nhiêu dòng mã được tạo ra, và bao nhiêu lần thử tự sửa lỗi đã được sử dụng.
 

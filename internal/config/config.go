@@ -12,6 +12,13 @@ type Config struct {
 	BA     agent.AgentSpec `json:"ba"`
 	Dev    agent.AgentSpec `json:"dev"`
 	DevOps agent.AgentSpec `json:"devops"`
+	Mem0   Mem0Config      `json:"mem0"`
+}
+
+// Mem0Config holds the configuration for the Mem0 REST client.
+type Mem0Config struct {
+	BaseURL string `json:"base_url"`
+	AgentID string `json:"agent_id"`
 }
 
 // DefaultConfig returns the built-in default configuration.
@@ -33,6 +40,10 @@ func DefaultConfig() Config {
 			ModelName:   "hermes3:8b",
 			CmdTemplate: []string{"run", "{model}", "{prompt}"},
 			MCPConfig:   ".mcp/devops_linear.json",
+		},
+		Mem0: Mem0Config{
+			BaseURL: "http://localhost:8000",
+			AgentID: "harness-architect",
 		},
 	}
 }

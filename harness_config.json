@@ -28,5 +28,9 @@
     "model_name": "hermes3:8b",
     "cmd_template": ["run", "{model}", "{prompt}"],
     "mcp_config": ".mcp/devops_linear.json"
+  },
+  "mem0": {
+    "base_url": "http://localhost:8000",
+    "agent_id": "harness-architect"
   }
 }

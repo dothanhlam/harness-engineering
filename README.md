@@ -14,7 +14,7 @@ flowchart TD
     DEV["2. DEV STAGE (claude)<br>Generate code into subfolder"]
     QA["3. QA STAGE (go test)<br>Parallel Audit & Test Suite<br>Auto-heal up to 3 times"]
     HITL["4. HUMAN-IN-THE-LOOP<br>Manual terminal approval"]
-    DEVOPS["5. DEVOPS & MEMORY COMPACTION<br>Compress blueprint -> Linear MCP Update -> Export telemetry.json"]
+    DEVOPS["5. DEVOPS & PROGRESSIVE MEMORY<br>Mem0 Archiving -> Linear MCP Update -> Export telemetry.json"]
 
     BA --> DEV
     DEV --> QA
@@ -32,7 +32,7 @@ The orchestrator transitions autonomously through defined pipeline states (`inte
 *   **`BA_REFACTOR` (Delegation Protocol)**: A dynamic non-linear delegation loop. If the Developer agent exhausts its QA healing retries, the orchestrator safely delegates back to the BA agent to rewrite and clarify the `definitions_of_done.md` based on the compilation errors.
 *   **`HUMAN_IN_THE_LOOP`**: Halts the pipeline, requiring user approval via terminal (auto-approves after 30s) before integration.
 *   **`DEVOPS_DELIVER`**: Calls a local Ollama instance to summarize the codebase changes and compile `workspace/RELEASE_NOTES.md`. Concurrently updates Linear tickets via a background goroutine.
-*   **`MEMORY_COMPACTION`**: Progressively updates and compresses the system blueprint memory sequentially.
+*   **`PROGRESSIVE_MEMORY`**: Progressively analyzes requirements and archives architectural correlations directly into the local Mem0 vector database for semantic search.
 *   **`COMPLETED`**: Finalizes the build, exports pipeline telemetry, and closes the loop.
 
 ### 2. 🛡️ Security & Validation Modules (`workspace/`)
@@ -94,8 +94,10 @@ harness-app/
 │   └── telemetry/                 # Mutex-protected execution metrics
 ├── memory/
 │   ├── definitions_of_done.md    # Product specifications & validation criteria
-│   ├── lessons_learned.md        # Debugging guidelines & operational history
-│   └── system_blueprint.md       # Auto-syncing modular feature architectures
+│   └── lessons_learned.md        # Debugging guidelines & operational history
+├── mem0-server/                  # Local Mem0 vector database backend (submodule)
+├── scripts/                      
+│   └── install_mem0.sh           # Setup script for Mem0
 ├── workspace/                    # Core development artifacts
 │   ├── email_validation/         # Modular package: Email Validation
 │   ├── landing_page/             # Modular package: Landing Page
@@ -114,8 +116,16 @@ harness-app/
 
 ### Prerequisites
 *   **Go** (1.21 or higher)
+*   **Docker**: Required to run the local Mem0 vector database (`make memory-up`).
 *   **Ollama**: Must be installed and running locally (`ollama serve`) with the configured model (e.g., `hermes3:8b`) to execute the automated DevOps documentation phase.
 *   **agy CLI**: The Antigravity autonomous developer agent must be installed to execute code generation.
+
+### First Time Setup
+To setup and run the memory backend before executing the orchestrator:
+```bash
+./scripts/install_mem0.sh
+make memory-up
+```
 
 ---
 

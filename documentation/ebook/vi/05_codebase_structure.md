@@ -34,7 +34,7 @@ Tệp cấu hình toàn cục. Nó quyết định việc sử dụng các đặ
 * **`.agents/`**: Chứa các hệ thống gợi ý (system prompts) và cấu hình hành vi cho các AI agent của chúng ta. Ví dụ, `antigravity_dev_prompt.md` hướng dẫn Developer agent chính xác về các tiêu chuẩn viết mã của chúng ta.
 * **`memory/`**: Đây là "bộ não" của AI. Không giống như các kỹ sư con người, các AI agent sẽ mất ngữ cảnh của chúng giữa các lần chạy. Chúng ta lưu giữ bộ nhớ của chúng tại đây:
     * `definitions_of_done.md`: Danh sách kiểm tra kỹ thuật nghiêm ngặt do BA agent tạo ra.
-    * `system_blueprint.md`: Một bản đồ kiến trúc giúp AI hiểu về hệ thống rộng lớn hơn mà nó đang đóng góp vào.
+    * `mem0-server/`: Backend cơ sở dữ liệu vector Mem0 cục bộ được sử dụng để tìm kiếm ngữ nghĩa.
     * `lessons_learned.md`: Một tài liệu sống, nơi AI ghi lại những lỗi mà nó đã sửa để không lặp lại chúng nữa.
 
 ## Không gian Làm việc được Tạo ra (Workspace)

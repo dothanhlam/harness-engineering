@@ -1,0 +1,2 @@
+- DevOps auto-generation aborted (thermal fallback).
+- Check commits for details.

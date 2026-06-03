@@ -34,7 +34,7 @@ The system will decompose all files in the folder into decoupled sub-features an
 
 ## Where is the output?
 
-* **`memory/`**: This is where the AI stores its context. You will find `definitions_of_done.md` (the checklist) and `system_blueprint.md` (the architectural map).
+* **`memory/`**: This is where the AI stores its context. You will find `definitions_of_done.md` (the checklist) and the Mem0 vector database backend (submodule).
 * **`workspace/`**: This is where the actual Go code is generated. Each feature gets its own clean subfolder.
 * **`workspace/telemetry.json`**: Check this file to see how long the pipeline took, how many lines of code were generated, and how many self-healing retries were used.
 

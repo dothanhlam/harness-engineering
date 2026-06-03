@@ -20,7 +20,7 @@ The Developer agent (Phase 1) is powered by the `agy` CLI (Antigravity). This is
 * The orchestrator automatically passes the `--dangerously-skip-permissions` flag to allow `agy` to run autonomously without pausing for file write permissions, though it is strictly sandboxed to the `workspace/` directory via the `--add-dir` flags.
 
 ## 4. The DevOps Agent: Ollama
-For Phase 3 (Release Notes generation and Memory Compaction), we use localized LLMs to save on cloud API costs and ensure complete privacy for our source code. 
+For Phase 3 (Release Notes generation and Progressive Memory), we use localized LLMs and Mem0 vector storage to save on cloud API costs and ensure complete privacy for our source code.
 * Download and install **Ollama** from [ollama.com](https://ollama.com/).
 * Once installed, pull the model we use for documentation generation (configured in `harness_config.json`):
   ```bash

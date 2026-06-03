@@ -1,51 +1,43 @@
-# Definition of Done: Factorial Function Implementation
+# Definition of Done: Flappy Bird (Workspace Implementation)
 
-## 1. Functional Requirements
-- [ ] Implement the core mathematical logic for calculating the factorial of a non-negative integer ($n!$).
-- [ ] Support calculation for $n = 0$ (result must be $1$).
-- [ ] Support calculation for $n = 1$ (result must be $1$).
-- [ ] Ensure the implementation accurately returns the product of all positive integers less than or equal to $n$.
+## 1. Core Game Mechanics (Functional)
+- [ ] **Gravity Engine:** Implement a constant downward acceleration (vector-based) applied to the bird entity.
+- [ ] **Jump Physics:** Implement an instantaneous upward velocity impulse triggered by user input (Space/Click/Touch).
+- [ ] **Pipe Generation:** Implement a procedural spawning system for pipes with randomized vertical gaps and fixed horizontal intervals.
+- [ ] **Collision Matrix:**
+    - [ ] AABB (Axis-Aligned Bounding Box) collision detection between bird and pipes.
+    - [ ] Floor collision detection (terminal game state).
+    - [ ] Ceiling collision detection (optional: bounce vs. kill).
+- [ ] **Scoring System:** Increment score counter exactly when the bird's horizontal trailing edge clears the pipe's horizontal trailing edge.
+- [ ] **State Machine:** Implement distinct game states: `START_SCREEN`, `PLAYING`, `GAME_OVER`.
 
-## 2. Technical Specifications & Error Handling
-- [ ] **Algorithm Efficiency:**
-    - [ ] Implement with $O(n)$ Time Complexity.
-    - [ ] Optimize for $O(1)$ Space Complexity by using an iterative approach to avoid stack overhead.
-- [ ] **Data Types & Overflow:**
-    - [ ] Use `uint64` for primary implementation.
-    - [ ] **Overflow Detection:** Explicitly detect and return an error when $n!$ exceeds `math.MaxUint64` (e.g., for $n > 20$).
-    - [ ] **Negative Input:** Reject negative integers with a specific error message or constant.
-- [ ] **(Optional) Arbitrary Precision:** 
-    - [ ] If required for $n > 20$, provide a secondary implementation or method using `math/big`.
+## 2. Technical Architecture
+- [ ] **Project Structure:** Source code must reside in `workspace/flappybird/` with clear separation between logic (engine) and rendering (view).
+- [ ] **Render Loop:** Implement a requestAnimationFrame-based loop (or equivalent) targeting a stable 60 FPS.
+- [ ] **Delta Time Integration:** All physics calculations (movement, gravity) must be normalized using delta time (`dt`) to ensure frame-rate independence.
+- [ ] **Asset Management:**
+    - [ ] Modular loading of sprites/textures.
+    - [ ] Audio manager for jump, score, and collision SFX.
+- [ ] **Clean Code Standards:**
+    - [ ] No hardcoded magic numbers (extract to `config.js` or `constants.go`).
+    - [ ] Documented functions and class structures.
 
-## 3. Workspace & Module Configuration
-- [ ] **Module Boundary Fix:** Ensure `workspace/go.mod` is correctly initialized and contains the necessary module path (e.g., `harness/workspace`).
-- [ ] **Pathing Resolution:** Resolve the compilation error where the root module fails to find `./workspace/...` as a package. 
-    - [ ] Either initialize a `go.work` file in the project root to include `./` and `./workspace`.
-    - [ ] Or ensure the build/test commands are executed from the correct module root (`/workspace`).
-- [ ] **Dependency Hygiene:** Run `go mod tidy` in the `workspace` directory to ensure `go.sum` is synchronized.
+## 3. User Interface & Experience (UI/UX)
+- [ ] **Visual Parallax:** (Optional but recommended) Multi-layered background for depth perception.
+- [ ] **HUD:** Real-time score display with high contrast and legible typography.
+- [ ] **Game Over Overlay:** Display final score and a "high score" persistent record (local storage or session).
+- [ ] **Input Latency:** Zero-perceivable lag between input event and physics impulse.
+- [ ] **Responsive Design:** Canvas/Container must scale or center correctly within a standard browser window or terminal size.
 
-## 4. Code Quality & Standards
-- [ ] Code adheres to `go fmt` and `go vet` standards.
-- [ ] Public functions are documented following Godoc conventions.
-- [ ] Variable naming is idiomatic (e.g., `n`, `result`, `err`).
-- [ ] Logic is stateless and safe for concurrent execution.
+## 4. Stability & Performance
+- [ ] **Memory Management:** Ensure pipes are properly garbage collected/pooled once they exit the left viewport boundary.
+- [ ] **Error Handling:** Graceful handling of missing assets (images/sounds) without crashing the engine.
+- [ ] **Event Cleanup:** Ensure all event listeners are cleared if the game is restarted or destroyed.
 
-## 5. Testing & Validation
-- [ ] **Unit Tests:**
-    - [ ] **Base Cases:** $n=0, n=1$.
-    - [ ] **Standard Cases:** $n=5, n=10$.
-    - [ ] **Boundary Cases:** Max $n$ before overflow ($n=20$ for `uint64`).
-- [ ] **Negative Scenarios:** Assert that negative inputs and overflow conditions return expected errors.
-- [ ] **Verified Build Command:** Confirm that `go test ./...` executes successfully from within the `workspace` directory.
-- [ ] **Performance Benchmarking:** Include `BenchmarkFactorial` to verify $O(n)$ scaling.
-
-## 6. Documentation & Integration
-- [ ] `workspace/factorial/factorial.go`: Core logic.
-- [ ] `workspace/factorial/factorial_test.go`: Tests and benchmarks.
-- [ ] `workspace/factorial/README.md`: Technical overview and complexity analysis.
-- [ ] `workspace/factorial/RELEASE_NOTES.md`: Known constraints (e.g., max $n$ for `uint64`).
-
-## 7. Definitions of Success
-- [ ] The code compiles without "directory prefix does not contain main module" errors.
-- [ ] All tests pass with 100% coverage on mathematical edge cases.
-- [ ] The module structure is clean, following Go's multi-module or workspace best practices.
+## 5. Deployment & Runnability
+- [ ] **Zero-Config Execution:** The game must be runnable via a single command (e.g., `open index.html` or `go run main.go`).
+- [ ] **README.md:** Include:
+    - [ ] Directives on how to start the game.
+    - [ ] Control mapping.
+    - [ ] Technical stack overview.
+- [ ] **Validation:** Smoke test passed—one full cycle from Start -> Play -> Collision -> Restart.

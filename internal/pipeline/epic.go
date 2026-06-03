@@ -141,9 +141,12 @@ func executeParallel(ep EpicPipeline, cfg config.Config, tracker *telemetry.Trac
 				t.Name, t.TargetFolder, t.TicketID, t.PromptSpecs)
 			_ = os.WriteFile(filepath.Join(isolatedMemDir, "definitions_of_done.md"), []byte(dodContent), 0644)
 
-			// Copy shared memory files to isolated dir
-			if blueprint, err := os.ReadFile("memory/system_blueprint.md"); err == nil {
-				_ = os.WriteFile(filepath.Join(isolatedMemDir, "system_blueprint.md"), blueprint, 0644)
+			// Retrieve Mem0 context
+			mem0Client := memory.NewMem0Client(cfg.Mem0.BaseURL, cfg.Mem0.AgentID)
+			memories, searchErr := mem0Client.SearchMemories(t.PromptSpecs, 3)
+			contextStr := ""
+			if searchErr == nil && len(memories) > 0 {
+				contextStr = "\n\n=== SYSTEM ARCHITECTURE CONTEXT FROM MEM0 ===\n- " + strings.Join(memories, "\n- ")
 			}
 
 			// Clone dev agent spec and remap --add-dir ./memory to isolated path
@@ -158,7 +161,7 @@ func executeParallel(ep EpicPipeline, cfg config.Config, tracker *telemetry.Trac
 				return
 			}
 
-			_, err = devAgent.Execute(string(devPrompt))
+			_, err = devAgent.Execute(string(devPrompt) + contextStr)
 			devResultCh <- TaskResult{TaskName: t.Name, Success: err == nil, Error: err}
 		}(i, task)
 	}
@@ -280,8 +283,8 @@ func executeParallel(ep EpicPipeline, cfg config.Config, tracker *telemetry.Trac
 
 	// ── Phase 5: Sequential Memory Progression ──
 	UpdateState(StageCompact, 0, tracker)
-	memory.UpdateSystemMemory(&cfg.DevOps)
-	memory.CompactSystemMemory(&cfg.DevOps)
+	mem0Client := memory.NewMem0Client(cfg.Mem0.BaseURL, cfg.Mem0.AgentID)
+	memory.UpdateSystemMemory(mem0Client, &cfg.DevOps)
 
 	UpdateState(StageDone, 0, tracker)
 	fmt.Printf("\n📊 [PARALLEL EPIC RESULTS] %d total, %d dev failures, %d QA failures\n",

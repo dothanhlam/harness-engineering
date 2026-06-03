@@ -10,7 +10,7 @@ Read the criteria in `/memory/definitions_of_done.md` and check if a `/workspace
 
 ## 2. SELF-HEALING & EXECUTION PROTOCOL
 
-1. **Analyze Task & Memory:** Review `/memory/system_blueprint.md` for existing architecture context.
+1. **Analyze Task & Memory:** Review the `SYSTEM ARCHITECTURE CONTEXT` appended below (if any) for existing architecture context.
 2. **Analyze Failure Logs:** If `/workspace/qa_error.log` exists and is not empty, prioritize reading the compilation or unit test failure traces. Treat these logs as high-priority constraints. Fix the bugs, unhandled errors, or missing edge cases identified by the compiler/test-runner.
 3. **Targeted Write/Repair:** Modify or rewrite the files strictly inside the designated feature subfolder (e.g., `/workspace/feature_name/`). Ensure package names are lowercase and match the subfolder name.
 4. **Compile Verification:** Run `go build -o /dev/null ./workspace/...` to ensure your fixes solve the issue. Repeat internally until local syntax errors are 0.

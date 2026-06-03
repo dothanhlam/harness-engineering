@@ -35,6 +35,8 @@ help:
 	@echo ""
 	@echo "  Harness Engineering — available make targets"
 	@echo ""
+	@echo "  memory-up   Start local Mem0 server via docker compose"
+	@echo "  memory-down Stop local Mem0 server"
 	@grep -E '^## ' $(MAKEFILE_LIST) | sed 's/## /  /'
 	@echo ""
 
@@ -82,6 +84,22 @@ update-docs:
 	done
 
 	@echo "\n🎯 Documentation update complete."
+
+# ─────────────────────────────────────────────────────────────────────────────
+## memory-up: start the local Mem0 memory server
+# ─────────────────────────────────────────────────────────────────────────────
+memory-up:
+	@echo "🚀 Starting Mem0 server..."
+	@cd mem0-server/server && docker compose up -d
+	@echo "✅ Mem0 server running on http://localhost:8000"
+
+# ─────────────────────────────────────────────────────────────────────────────
+## memory-down: stop the local Mem0 memory server
+# ─────────────────────────────────────────────────────────────────────────────
+memory-down:
+	@echo "🛑 Stopping Mem0 server..."
+	@cd mem0-server/server && docker compose down
+	@echo "✅ Mem0 server stopped"
 
 # ─────────────────────────────────────────────────────────────────────────────
 ## release: build binary, bump version, tag, commit, and push

@@ -19,6 +19,7 @@ import (
 // Uses goroutines for parallel QA (audit ∥ tests) and async Linear ticket updates.
 // Memory progression is fully sequential per design decision.
 func RunCoreHarnessLoop(cfg config.Config, tracker *telemetry.Tracker) {
+	mem0Client := memory.NewMem0Client(cfg.Mem0.BaseURL, cfg.Mem0.AgentID)
 	// =======================================================
 	// CORE LOOP: DEV 🔀 QA (SELF-HEALING) & DELEGATION
 	// =======================================================
@@ -37,7 +38,14 @@ func RunCoreHarnessLoop(cfg config.Config, tracker *telemetry.Tracker) {
 				log.Fatalf("❌ Missing configuration file: .agents/antigravity_dev_prompt.md")
 			}
 
-			_, err = cfg.Dev.Execute(string(devPrompt))
+			dodContent, _ := os.ReadFile("memory/definitions_of_done.md")
+			memories, searchErr := mem0Client.SearchMemories(string(dodContent), 3)
+			contextStr := ""
+			if searchErr == nil && len(memories) > 0 {
+				contextStr = "\n\n=== SYSTEM ARCHITECTURE CONTEXT FROM MEM0 ===\n- " + strings.Join(memories, "\n- ")
+			}
+
+			_, err = cfg.Dev.Execute(string(devPrompt) + contextStr)
 			if err != nil {
 				fmt.Printf("⚠️ Dev Agent run error: %v\n", err)
 			}
@@ -282,8 +290,7 @@ Output ONLY the strict markdown checklist content. Do not include any chat fille
 	// FINALIZE: Memory Progression (fully sequential)
 	// =======================================================
 	UpdateState(StageCompact, 0, tracker)
-	memory.UpdateSystemMemory(&cfg.DevOps)
-	memory.CompactSystemMemory(&cfg.DevOps)
+	memory.UpdateSystemMemory(mem0Client, &cfg.DevOps)
 
 	// Wait for async Linear update if it was started
 	if linearStarted {

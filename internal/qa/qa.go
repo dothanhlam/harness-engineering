@@ -56,7 +56,17 @@ func AuditGeneratedCode(directory string) error {
 // RunTests executes `go test -v` on the given pattern and returns the combined result.
 // Goroutine-safe: spawns an independent child process.
 func RunTests(pattern string) *TestResult {
-	cmd := exec.Command("go", "test", "-v", pattern)
+	var cmd *exec.Cmd
+	if strings.HasPrefix(pattern, "./workspace/") {
+		subPattern := "./" + strings.TrimPrefix(pattern, "./workspace/")
+		cmd = exec.Command("go", "test", "-v", subPattern)
+		cmd.Dir = "workspace"
+	} else if pattern == "./workspace/..." {
+		cmd = exec.Command("go", "test", "-v", "./...")
+		cmd.Dir = "workspace"
+	} else {
+		cmd = exec.Command("go", "test", "-v", pattern)
+	}
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
