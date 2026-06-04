@@ -26,6 +26,10 @@ func RunCoreHarnessLoop(cfg config.Config, tracker *telemetry.Tracker) {
 	success := false
 	maxDelegations := 1
 
+	// Context Reset: ensure the Dev agent starts with a clear loop
+	_ = os.RemoveAll(".antigravitycli")
+	_ = os.RemoveAll(".claude")
+
 	for delegation := 0; delegation <= maxDelegations; delegation++ {
 		for retry := 0; retry < MaxRetries; retry++ {
 			// ── PHASE 1: DEVELOPMENT / REPAIR ──
@@ -89,6 +93,11 @@ func RunCoreHarnessLoop(cfg config.Config, tracker *telemetry.Tracker) {
 			// Activate Delegation Protocol
 			UpdateState(StageBARefactor, delegation, tracker)
 			fmt.Println("🔄 Activating Delegation Protocol: BA Agent rewriting requirements...")
+
+			// Context Reset: clear previous failure context for the new loop iteration
+			fmt.Println("🧹 Clearing agent context for a clean loop...")
+			_ = os.RemoveAll(".antigravitycli")
+			_ = os.RemoveAll(".claude")
 
 			qaLogs, _ := os.ReadFile("workspace/qa_error.log")
 			dodContent, _ := os.ReadFile("memory/definitions_of_done.md")

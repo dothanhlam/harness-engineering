@@ -99,3 +99,13 @@ Run latency benchmarks:
 ```bash
 go test -bench=. ./workspace/random/...
 ```
+
+---
+
+## Architecture Note: The "Clear Loop" Context Reset
+
+If the developer agent (`agy`) fails its QA retries, the Harness pipeline activates the **Delegation Protocol** and has the BA Agent rewrite the `definitions_of_done.md`. 
+
+To ensure the Dev agent starts with a perfectly **clear loop** on its next attempt:
+* The orchestrator performs a hard context reset by deleting the local state directories (`.antigravitycli` and `.claude`).
+* This prevents context pollution, ensuring the agent doesn't "remember" its previous failed code generation attempts or the outdated requirements.
