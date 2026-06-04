@@ -12,12 +12,12 @@ The orchestrator and the generated code modules are written in Go. You will need
 
 ## 2. The BA Agent: Gemini CLI
 We use the `gemini` command-line tool as our Business Analyst (Phase 0). It is responsible for decomposing raw tasks into the strict checklists found in `definitions_of_done.md`.
-* Ensure you have the Gemini CLI installed and authenticated on your machine so the `gemini run` commands execute seamlessly.
+* Ensure you have the Gemini CLI installed and authenticated on your machine so the `gemini run` commands execute seamlessly. It can optionally leverage an MCP configuration (`.mcp/ba_notion.json`) for Notion integration.
 
 ## 3. The Developer Agent: Antigravity (`agy`)
 The Developer agent (Phase 1) is powered by the `agy` CLI (Antigravity). This is an autonomous agent that reads our system prompts and writes the code inside the `workspace/` folder.
 * Install the `agy` CLI per your internal organizational tools.
-* The orchestrator automatically passes the `--dangerously-skip-permissions` flag to allow `agy` to run autonomously without pausing for file write permissions, though it is strictly sandboxed to the `workspace/` directory via the `--add-dir` flags.
+* The orchestrator automatically passes the `--dangerously-skip-permissions` flag to allow `agy` to run autonomously without pausing for file write permissions, though it is strictly sandboxed to the `workspace/` and `memory/` directories via the `--add-dir` flags. It also dynamically sets the `ANTIGRAVITY_MODEL` environment variable (e.g., to `gemini-2.5-flash`).
 
 ## 4. The DevOps Agent: Ollama
 For Phase 3 (Release Notes generation and Memory Compaction), we use localized LLMs to save on cloud API costs and ensure complete privacy for our source code. 
@@ -30,6 +30,7 @@ For Phase 3 (Release Notes generation and Memory Compaction), we use localized L
   ```bash
   ollama serve
   ```
+* When integrated with Linear via an MCP configuration (`.mcp/devops_linear.json`), this phase can automatically update tickets with the generated release notes.
 
 ## 5. Verify the Setup
 Once you have Go, Gemini, Agy, and Ollama installed, you can verify your setup by running a simple test task:
@@ -37,4 +38,4 @@ Once you have Go, Gemini, Agy, and Ollama installed, you can verify your setup b
 go run main.go -task "Create a simple hello world module"
 ```
 
-If the pipeline successfully flows through BA -> DEV -> QA -> AUDIT -> HITL -> DEVOPS without throwing any "command not found" errors, your environment is perfectly configured!
+If the pipeline successfully flows through BA -> DEV -> QA (Audit & Tests) -> HITL -> DEVOPS -> MEMORY COMPACT without throwing any "command not found" errors, your environment is perfectly configured!
