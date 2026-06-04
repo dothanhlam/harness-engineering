@@ -1,4 +1,3 @@
-```markdown
 # Harness Orchestration Engine & Validation Modules (v2026.1)
 
 Welcome to the **Harness Orchestration System**, a robust, state-aware automation pipeline and high-performance validation engine engineered for Go ecosystems. This project integrates autonomous AI agents, automated quality assurance workflows, and local LLM orchestration to streamline development from initial analysis through deployment delivery.
@@ -11,13 +10,13 @@ Welcome to the **Harness Orchestration System**, a robust, state-aware automatio
 
 ```mermaid
 flowchart TD
-    BA["0. BA STAGE (gemini)<br>Read PRD -> Write memory/DoD"]
-    DEV["1. DEV_CODING (agy)<br>Generate code into subfolder"]
-    QA["2. QA_TESTING (go test)<br>Parallel Audit & Test Suite<br>Auto-heal up to 3 times"]
-    BA_REF["3. BA_REFACTOR<br>Delegation Protocol (Rewrite DoD)"]
-    HITL["4. HUMAN_IN_THE_LOOP<br>Manual terminal approval"]
-    DEVOPS["5. DEVOPS_DELIVER<br>Ollama Release Notes & Linear MCP Update"]
-    COMPACT["6. MEMORY_COMPACTION<br>Mem0 Archiving"]
+    BA["0. BA STAGE (gemini) - Read PRD -> Write memory/DoD"]
+    DEV["1. DEV_CODING (agy) - Generate code into subfolder"]
+    QA["2. QA_TESTING (go test) - Parallel Audit & Test Suite - Auto-heal up to 3 times"]
+    BA_REF["3. BA_REFACTOR - Delegation Protocol (Rewrite DoD)"]
+    HITL["4. HUMAN_IN_THE_LOOP - Manual terminal approval"]
+    DEVOPS["5. DEVOPS_DELIVER - Ollama Release Notes & Linear MCP Update"]
+    COMPACT["6. MEMORY_COMPACTION - Mem0 Archiving"]
     DONE["7. COMPLETED"]
 
     BA --> DEV
@@ -154,5 +153,4 @@ go test -v ./workspace/...
 PASS
 ok  	github.com/dothanhlam/harness-app/workspace/password	2.734s
 ok  	github.com/dothanhlam/harness-app/workspace/landing_page	0.968s
-```
 ```
