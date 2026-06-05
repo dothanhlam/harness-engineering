@@ -24,7 +24,6 @@ func main() {
 	taskFlag := flag.String("task", "", "Raw requirement to trigger Phase 0 Business Analyst")
 	epicFlag := flag.String("epic", "", "Path to a directory containing epic requirements for decomposition")
 	parallelEpic := flag.Bool("parallel-epic", false, "Run epic sub-tasks concurrently with isolated workspaces")
-	traceFlag := flag.Bool("trace", false, "Enable claude-tap to view full agent logs in the browser")
 	baAgentCmd := flag.String("ba-agent", cfg.BA.Agent, "Command/binary to execute for Phase 0 Business Analyst")
 	devAgentCmd := flag.String("dev-agent", cfg.Dev.Agent, "Command/binary to execute for Phase 1 Developer Coding")
 	devAgentModel := flag.String("dev-model", cfg.Dev.ModelName, "Model name for the Dev agent (sets ANTIGRAVITY_MODEL env var)")
@@ -38,19 +37,6 @@ func main() {
 	cfg.Dev.ModelName = *devAgentModel
 	cfg.DevOps.Agent = *devOpsAgent
 	cfg.DevOps.ModelName = *devOpsModel
-
-	// Dynamically wrap agents with claude-tap if trace is enabled
-	if *traceFlag {
-		fmt.Println("🔍 Trace mode enabled: Agent traffic will be routed through claude-tap")
-
-		// Wrap BA Agent
-		cfg.BA.CmdTemplate = append([]string{"--tap-client", cfg.BA.Agent, "--"}, cfg.BA.CmdTemplate...)
-		cfg.BA.Agent = "claude-tap"
-
-		// Wrap Dev Agent
-		cfg.Dev.CmdTemplate = append([]string{"--tap-client", cfg.Dev.Agent, "--"}, cfg.Dev.CmdTemplate...)
-		cfg.Dev.Agent = "claude-tap"
-	}
 
 	fmt.Println("🚀 ACTIVATING GO HARNESS PIPELINE v2026.1")
 	_ = os.MkdirAll("memory", 0755)

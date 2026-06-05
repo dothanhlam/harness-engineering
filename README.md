@@ -101,10 +101,8 @@ harness-app/
 │   ├── definitions_of_done.md    # Product specifications & validation criteria
 │   └── lessons_learned.md        # Debugging guidelines & operational history
 ├── mem0-server/                  # Local Mem0 vector database backend (submodule)
-├── claude-tap/                   # Local AI agent trace viewer (submodule)
 ├── scripts/                      
-│   ├── install_mem0.sh           # Setup script for Mem0
-│   └── install_tap.sh            # Setup script for claude-tap trace viewer
+│   └── install_mem0.sh           # Setup script for Mem0
 ├── workspace/                    # Core development artifacts
 │   ├── email_validation/         # Modular package: Email Validation
 │   ├── landing_page/             # Modular package: Landing Page
@@ -128,10 +126,9 @@ harness-app/
 *   **agy CLI**: The Antigravity autonomous developer agent must be installed to execute code generation.
 
 ### First Time Setup
-To setup and run the memory backend and trace viewer before executing the orchestrator:
+To setup and run the memory backend before executing the orchestrator:
 ```bash
 ./scripts/install_mem0.sh
-./scripts/install_tap.sh
 make memory-up
 ```
 
