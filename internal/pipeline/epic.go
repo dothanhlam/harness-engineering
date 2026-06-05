@@ -251,7 +251,7 @@ func executeParallel(ep EpicPipeline, cfg config.Config, tracker *telemetry.Trac
 
 			sysPrompt := fmt.Sprintf("You are a deployment release manager. Generate a short, bulleted markdown release note based on the provided Go code for the feature '%s'. Keep it brief. Be extremely concise. Return bullet points only. Limit your response to under 150 words. Do not write filler structural prose.", t.Name)
 			fullPrompt := fmt.Sprintf("SYSTEM INSTRUCTIONS:\n%s\n\nUSER INPUT:\n%s", sysPrompt, allCode)
-			
+
 			var releaseNotes string
 			var err error
 			if cfg.DevOps.Agent == "ollama" {

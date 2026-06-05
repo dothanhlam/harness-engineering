@@ -1,8 +1,9 @@
-- New `email_validation` package for robust, RFC 5322 compliant email valid[5D[K
-validation logic.
-- Implements high-performance, ReDoS-resistant regex patterns for local-par[9D[K
-local-part, label, and TLD validations.
-- `IsValidEmail` function checks the validity of an email string based on R[1D[K
-RFC 5322 structure and project-specific rules.
-- Comprehensive test suite covering both positive and negative scenarios to[2D[K
-to ensure correctness.
+- New `email_validation` package for strict RFC 5322 compliant and project-[8D[K
+project-specific email validation logic, with ReDoS resistance.
+- Single function `IsValidEmail` to check if given string is a valid email [K
+address.
+- Utilizes regex patterns for local-part, label, and TLD validation.
+- Fast-path rejections for empty strings, missing '@', spaces, dots, etc., [K
+before full validation.
+- Comprehensive test suite covering positive and negative scenarios.
+- Benchmarking available for performance evaluation.
