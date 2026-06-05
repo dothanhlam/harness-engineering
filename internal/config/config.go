@@ -23,10 +23,9 @@ func DefaultConfig() Config {
 			CmdTemplate: []string{"run", "{model}", "{prompt}"},
 		},
 		Dev: agent.AgentSpec{
-			Agent:       "agy",
-			ModelName:   "gemini-2.5-flash",
-			CmdTemplate: []string{"--print", "{prompt}", "--dangerously-skip-permissions", "--add-dir", "./workspace", "--add-dir", "./memory"},
-			Env:         map[string]string{"ANTIGRAVITY_MODEL": "{model}"},
+			Agent:       "ollama",
+			ModelName:   "gemma4:e4b",
+			CmdTemplate: []string{"run", "{model}", "{prompt}"},
 		},
 		DevOps: agent.AgentSpec{
 			Agent:       "ollama",

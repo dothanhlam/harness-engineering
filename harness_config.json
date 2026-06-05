@@ -13,14 +13,10 @@
     "mcp_config": ""
   },
   "dev": {
-    "_comment": "Dev agent: agy CLI. Swap with '_dev_claude_backup' key to restore.",
-    "agent": "agy",
-    "model_name": "gemini-2.5-flash",
-    "cmd_template": ["--print", "{prompt}", "--dangerously-skip-permissions", "--add-dir", "./workspace", "--add-dir", "./memory"],
-    "env": {
-      "ANTIGRAVITY_MODEL": "{model}"
-    },
-    "mcp_config": ""
+    "_comment": "Dev agent: local ollama CLI.",
+    "agent": "ollama",
+    "model_name": "gemma4:e4b",
+    "cmd_template": ["run", "{model}", "{prompt}"]
   },
   "devops": {
     "_comment": "DevOps agent: local ollama CLI. model_name is passed as 'ollama run <model_name>'.",

@@ -11,7 +11,7 @@ Welcome to the **Harness Orchestration System**, a robust, state-aware automatio
 ```mermaid
 flowchart TD
     BA["0. BA STAGE (ollama) - Read PRD -> Write memory/DoD"]
-    DEV["1. DEV_CODING (agy) - Generate code into subfolder"]
+    DEV["1. DEV_CODING (ollama) - Generate code into subfolder"]
     QA["2. QA_TESTING (go test) - Parallel Audit & Test Suite - Auto-heal up to 3 times"]
     BA_REF["3. BA_REFACTOR - Delegation Protocol (Rewrite DoD)"]
     HITL["4. HUMAN_IN_THE_LOOP - Manual terminal approval"]
@@ -60,8 +60,8 @@ You can switch the agents, models, and endpoints used in each phase dynamically 
 | `-parallel-epic` | `false` | Run epic sub-tasks concurrently with isolated memory workspaces. |
 | `-ba-agent` | `"ollama"` | Binary/CLI name used for Phase 0 Business Analyst |
 | `-ba-model` | `"hermes3:8b"` | Model name for the Phase 0 Business Analyst agent |
-| `-dev-agent` | `"agy"` | Binary/CLI name used for Phase 1 Developer Coding |
-| `-dev-model` | `"gemini-2.5-flash"` | Model name for the Dev agent |
+| `-dev-agent` | `"ollama"` | Binary/CLI name used for Phase 1 Developer Coding |
+| `-dev-model` | `"gemma4:e4b"` | Model name for the Dev agent |
 | `-devops-agent`| `"ollama"`| Binary/CLI name used for Phase 3 DevOps documentation |
 | `-devops-model`| `"hermes3:8b"`| Model name to execute for Phase 3 DevOps documentation |
 
@@ -123,8 +123,7 @@ harness-app/
 ### Prerequisites
 *   **Go** (1.26.1 or higher)
 *   **Docker**: Required to run the local Mem0 vector database (`make memory-up`).
-*   **Ollama**: Must be installed and running locally (`ollama serve`) with the configured model (e.g., `hermes3:8b`) to execute the automated DevOps documentation phase.
-*   **agy CLI**: The Antigravity autonomous developer agent must be installed to execute code generation.
+*   **Ollama**: Must be installed and running locally (`ollama serve`) with the configured models (e.g., `hermes3:8b`, `gemma4:e4b`) to execute the BA, Dev, and DevOps phases.
 
 ### First Time Setup
 To setup and run the memory backend before executing the orchestrator:
