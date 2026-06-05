@@ -20,7 +20,6 @@ func DefaultConfig() Config {
 		BA: agent.AgentSpec{
 			Agent:       "gemini",
 			CmdTemplate: []string{"run", "{prompt}"},
-			MCPConfig:   ".mcp/ba_notion.json",
 		},
 		Dev: agent.AgentSpec{
 			Agent:       "agy",
@@ -32,7 +31,6 @@ func DefaultConfig() Config {
 			Agent:       "ollama",
 			ModelName:   "hermes3:8b",
 			CmdTemplate: []string{"run", "{model}", "{prompt}"},
-			MCPConfig:   ".mcp/devops_linear.json",
 		},
 	}
 }

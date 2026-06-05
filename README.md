@@ -15,7 +15,7 @@ flowchart TD
     QA["2. QA_TESTING (go test) - Parallel Audit & Test Suite - Auto-heal up to 3 times"]
     BA_REF["3. BA_REFACTOR - Delegation Protocol (Rewrite DoD)"]
     HITL["4. HUMAN_IN_THE_LOOP - Manual terminal approval"]
-    DEVOPS["5. DEVOPS_DELIVER - Ollama Release Notes & Linear MCP Update"]
+    DEVOPS["5. DEVOPS_DELIVER - Ollama Release Notes"]
     COMPACT["6. MEMORY_COMPACTION - Mem0 Archiving"]
     DONE["7. COMPLETED"]
 
@@ -37,7 +37,7 @@ The orchestrator transitions autonomously through defined pipeline states (`inte
     If QA fails, combined errors are logged to `workspace/qa_error.log` for AI self-healing.
 *   **`BA_REFACTOR` (Delegation Protocol)**: A dynamic non-linear delegation loop. If the Developer agent exhausts its QA healing retries, the orchestrator safely delegates back to the BA agent to rewrite and clarify the `definitions_of_done.md` based on the compilation errors.
 *   **`HUMAN_IN_THE_LOOP`**: Halts the pipeline, requiring user approval via terminal (auto-approves after 30s) before integration.
-*   **`DEVOPS_DELIVER`**: Calls a local Ollama instance to summarize the codebase changes and compile `workspace/RELEASE_NOTES.md`. Concurrently updates Linear tickets via a background goroutine.
+*   **`DEVOPS_DELIVER`**: Calls a local Ollama instance to summarize the codebase changes and compile `workspace/RELEASE_NOTES.md`.
 *   **`MEMORY_COMPACTION`**: Progressively analyzes requirements and archives architectural correlations directly into the local Mem0 vector database for semantic search.
 *   **`COMPLETED`**: Finalizes the build, exports pipeline telemetry, and closes the loop.
 

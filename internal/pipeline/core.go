@@ -16,7 +16,7 @@ import (
 )
 
 // RunCoreHarnessLoop runs the core Development → QA → HITL → DevOps → Memory loop.
-// Uses goroutines for parallel QA (audit ∥ tests) and async Linear ticket updates.
+// Uses goroutines for parallel QA (audit ∥ tests).
 // Memory progression is fully sequential per design decision.
 func RunCoreHarnessLoop(cfg config.Config, tracker *telemetry.Tracker) {
 	// =======================================================
@@ -158,19 +158,13 @@ Output ONLY the strict markdown checklist content. Do not include any chat fille
 	UpdateState(StageDevOps, 0, tracker)
 	fmt.Printf("📝 Invoking local %s agent (%s) to construct deployment documentation...\n", cfg.DevOps.Agent, cfg.DevOps.ModelName)
 
-	// Channel for non-blocking Linear ticket update goroutine
-	linearDone := make(chan struct{})
-	linearStarted := false
-
 	dodContent, errReadDoD := os.ReadFile("memory/definitions_of_done.md")
-	var targetSubfolder, ticketID, parsedFeatureName string
+	var targetSubfolder, parsedFeatureName string
 	if errReadDoD == nil {
 		for _, line := range strings.Split(string(dodContent), "\n") {
 			if strings.HasPrefix(line, "- Target Subfolder: ") {
 				targetSubfolder = strings.TrimSpace(strings.TrimPrefix(line, "- Target Subfolder: "))
 				parsedFeatureName = filepath.Base(targetSubfolder)
-			} else if strings.HasPrefix(line, "- Ticket ID: ") {
-				ticketID = strings.TrimSpace(strings.TrimPrefix(line, "- Ticket ID: "))
 			} else if strings.HasPrefix(line, "# TASK: ") && parsedFeatureName == "" {
 				parsedFeatureName = strings.TrimSpace(strings.TrimPrefix(line, "# TASK: "))
 			}
@@ -190,7 +184,7 @@ Output ONLY the strict markdown checklist content. Do not include any chat fille
 		if allCode != "" {
 			sysPrompt := fmt.Sprintf("You are a deployment release manager. Generate a short, bulleted markdown release note based on the provided Go code for the feature '%s'. Keep it brief. Be extremely concise. Return bullet points only. Limit your response to under 150 words. Do not write filler structural prose.", parsedFeatureName)
 			fullPrompt := fmt.Sprintf("SYSTEM INSTRUCTIONS:\n%s\n\nUSER INPUT:\n%s", sysPrompt, allCode)
-			
+
 			var releaseNotes string
 			var errDevOps error
 			if cfg.DevOps.Agent == "ollama" {
@@ -205,7 +199,7 @@ Output ONLY the strict markdown checklist content. Do not include any chat fille
 			} else {
 				releaseNotes, errDevOps = cfg.DevOps.Execute(fullPrompt)
 			}
-			
+
 			notePath := fmt.Sprintf("%s/RELEASE_NOTES.md", targetSubfolder)
 			if errDevOps != nil {
 				fmt.Printf("⚠️ DevOps Agent communication failed for %s: %v\n", parsedFeatureName, errDevOps)
@@ -213,25 +207,6 @@ Output ONLY the strict markdown checklist content. Do not include any chat fille
 				_ = os.WriteFile(notePath, []byte(releaseNotes), 0644)
 				fmt.Printf("📝 Generated %s automatically using local resources.\n", notePath)
 
-				if ticketID != "" && cfg.DevOps.MCPConfig != "" {
-					// Fire Linear ticket update as a non-blocking goroutine
-					linearStarted = true
-					go func() {
-						defer close(linearDone)
-						fmt.Printf("🚀 Triggering dev agent to update Linear ticket %s...\n", ticketID)
-						linearPrompt := fmt.Sprintf("Tests passed and feature '%s' is complete. Please update the Linear ticket %s with the following release notes:\n%s", parsedFeatureName, ticketID, releaseNotes)
-						outLinear, errLinear := cfg.Dev.Execute(linearPrompt)
-						if errLinear != nil {
-							fmt.Printf("⚠️ Warning: Failed to update Linear ticket %s: %v\n", ticketID, errLinear)
-						} else {
-							fmt.Printf("✅ Successfully updated Linear ticket %s.\n%s\n", ticketID, outLinear)
-						}
-					}()
-				} else if ticketID != "" {
-					fmt.Println("ℹ️ Linear MCP config missing. Skipping Linear ticket update.")
-				} else {
-					fmt.Println("ℹ️ No Ticket ID configured for this task. Skipping Linear ticket update.")
-				}
 			}
 		}
 	} else {
@@ -259,7 +234,7 @@ Output ONLY the strict markdown checklist content. Do not include any chat fille
 
 				sysPrompt := fmt.Sprintf("You are a deployment release manager. Generate a short, bulleted markdown release note based on the provided Go code for the feature '%s'. Keep it brief. Be extremely concise. Return bullet points only. Limit your response to under 150 words. Do not write filler structural prose.", feature)
 				fullPrompt := fmt.Sprintf("SYSTEM INSTRUCTIONS:\n%s\n\nUSER INPUT:\n%s", sysPrompt, allCode)
-				
+
 				var releaseNotes string
 				var errDevOps error
 				if cfg.DevOps.Agent == "ollama" {
@@ -281,7 +256,6 @@ Output ONLY the strict markdown checklist content. Do not include any chat fille
 				} else {
 					_ = os.WriteFile(notePath, []byte(releaseNotes), 0644)
 					fmt.Printf("📝 Generated %s automatically using local resources.\n", notePath)
-					fmt.Println("ℹ️ Running in legacy workspace mode without explicit ticket ID. Skipping Linear ticket update.")
 				}
 			}
 		}
@@ -293,11 +267,6 @@ Output ONLY the strict markdown checklist content. Do not include any chat fille
 	UpdateState(StageCompact, 0, tracker)
 	memory.UpdateSystemMemory(&cfg.DevOps)
 	memory.CompactSystemMemory(&cfg.DevOps)
-
-	// Wait for async Linear update if it was started
-	if linearStarted {
-		<-linearDone
-	}
 
 	UpdateState(StageDone, 0, tracker)
 	fmt.Println("\n🎯 SPRINT PIPELINE RUN COMPLETE. Check your /workspace folder for final artifacts!")

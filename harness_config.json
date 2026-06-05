@@ -2,8 +2,7 @@
   "ba": {
     "_comment": "BA agent: runs business analysis & drafts definitions_of_done.md. Uses 'gemini run <prompt>'",
     "agent": "gemini",
-    "cmd_template": ["run", "{prompt}"],
-    "mcp_config": ".mcp/ba_notion.json"
+    "cmd_template": ["run", "{prompt}"]
   },
   "_dev_claude_backup": {
     "_comment": "INACTIVE — Previous dev agent: Claude CLI. Swap with 'dev' key to restore.",
@@ -23,10 +22,9 @@
     "mcp_config": ""
   },
   "devops": {
-    "_comment": "DevOps agent: local ollama CLI. model_name is passed as 'ollama run <model_name>'. mcp_config points to Linear MCP for ticket updates",
+    "_comment": "DevOps agent: local ollama CLI. model_name is passed as 'ollama run <model_name>'.",
     "agent": "ollama",
     "model_name": "hermes3:8b",
-    "cmd_template": ["run", "{model}", "{prompt}"],
-    "mcp_config": ".mcp/devops_linear.json"
+    "cmd_template": ["run", "{model}", "{prompt}"]
   }
 }

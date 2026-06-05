@@ -15,12 +15,11 @@ type AgentSpec struct {
 	Agent       string            `json:"agent"`
 	ModelName   string            `json:"model_name,omitempty"`
 	CmdTemplate []string          `json:"cmd_template"`
-	MCPConfig   string            `json:"mcp_config,omitempty"`
 	Env         map[string]string `json:"env,omitempty"`
 }
 
 // Execute runs the agent CLI with the given prompt, replacing template tokens dynamically.
-// Supported tokens: {prompt}, {model}, {mcp}
+// Supported tokens: {prompt}, {model}
 func (a *AgentSpec) Execute(prompt string) (string, error) {
 	return a.ExecuteWithContext(context.Background(), prompt)
 }
@@ -35,7 +34,6 @@ func (a *AgentSpec) ExecuteWithContext(ctx context.Context, prompt string) (stri
 	for _, arg := range a.CmdTemplate {
 		arg = strings.ReplaceAll(arg, "{prompt}", prompt)
 		arg = strings.ReplaceAll(arg, "{model}", a.ModelName)
-		arg = strings.ReplaceAll(arg, "{mcp}", a.MCPConfig)
 		finalArgs = append(finalArgs, arg)
 	}
 
@@ -46,7 +44,6 @@ func (a *AgentSpec) ExecuteWithContext(ctx context.Context, prompt string) (stri
 		for k, v := range a.Env {
 			v = strings.ReplaceAll(v, "{prompt}", prompt)
 			v = strings.ReplaceAll(v, "{model}", a.ModelName)
-			v = strings.ReplaceAll(v, "{mcp}", a.MCPConfig)
 			envVars = append(envVars, fmt.Sprintf("%s=%s", k, v))
 		}
 		cmd.Env = envVars
@@ -54,7 +51,7 @@ func (a *AgentSpec) ExecuteWithContext(ctx context.Context, prompt string) (stri
 
 	var out bytes.Buffer
 	var stderr bytes.Buffer
-	
+
 	// Bind directly to os terminal while still capturing output for returns
 	cmd.Stdout = io.MultiWriter(os.Stdout, &out)
 	cmd.Stderr = io.MultiWriter(os.Stderr, &stderr)
