@@ -20,17 +20,17 @@ func DefaultConfig() Config {
 		BA: agent.AgentSpec{
 			Agent:       "ollama",
 			ModelName:   "hermes3:8b",
-			CmdTemplate: []string{"run", "{model}", "{prompt}"},
+			CmdTemplate: []string{"run", "{model}", "{prompt}", "--verbose"},
 		},
 		Dev: agent.AgentSpec{
 			Agent:       "ollama",
 			ModelName:   "gemma4:e4b",
-			CmdTemplate: []string{"run", "{model}", "{prompt}"},
+			CmdTemplate: []string{"run", "{model}", "{prompt}", "--verbose"},
 		},
 		DevOps: agent.AgentSpec{
 			Agent:       "ollama",
 			ModelName:   "hermes3:8b",
-			CmdTemplate: []string{"run", "{model}", "{prompt}"},
+			CmdTemplate: []string{"run", "{model}", "{prompt}", "--verbose"},
 		},
 	}
 }

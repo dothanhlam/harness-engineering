@@ -70,7 +70,8 @@ Analyze it and generate a standardized, highly technical 'definitions_of_done.md
 Output ONLY the strict markdown checklist content. Do not include any chat filler or explanations.
 `, *taskFlag)
 
-		outBA, err := cfg.BA.Execute(baPrompt)
+		outBA, tu, err := cfg.BA.Execute(baPrompt)
+		tracker.AddTokens(tu.PromptTokens, tu.EvalTokens)
 		if err != nil {
 			log.Fatalf("❌ BA Agent failed: %v", err)
 		}

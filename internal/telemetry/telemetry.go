@@ -15,6 +15,8 @@ type Telemetry struct {
 	TotalRetriesUsed     int      `json:"total_retries_used"`
 	CodeHealingSuccess   bool     `json:"code_healing_success"`
 	LinesOfCodeGenerated int      `json:"lines_of_code_generated"`
+	TotalPromptTokens    int      `json:"total_prompt_tokens"`
+	TotalEvalTokens      int      `json:"total_eval_tokens"`
 	Timestamp            string   `json:"timestamp"`
 }
 
@@ -43,6 +45,14 @@ func (t *Tracker) MarkHealing() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.data.CodeHealingSuccess = true
+}
+
+// AddTokens accumulates token usage into the tracker.
+func (t *Tracker) AddTokens(prompt, eval int) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.data.TotalPromptTokens += prompt
+	t.data.TotalEvalTokens += eval
 }
 
 // AddStage records a pipeline stage execution with timestamp.

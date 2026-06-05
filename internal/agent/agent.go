@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -18,16 +20,23 @@ type AgentSpec struct {
 	Env         map[string]string `json:"env,omitempty"`
 }
 
+// TokenUsage holds extracted token metrics (if emitted by the agent).
+type TokenUsage struct {
+	PromptTokens int
+	EvalTokens   int
+}
+
 // Execute runs the agent CLI with the given prompt, replacing template tokens dynamically.
 // Supported tokens: {prompt}, {model}
-func (a *AgentSpec) Execute(prompt string) (string, error) {
+func (a *AgentSpec) Execute(prompt string) (string, TokenUsage, error) {
 	return a.ExecuteWithContext(context.Background(), prompt)
 }
 
 // ExecuteWithContext runs the agent CLI with a given context, for timeouts and cancellation.
-func (a *AgentSpec) ExecuteWithContext(ctx context.Context, prompt string) (string, error) {
+func (a *AgentSpec) ExecuteWithContext(ctx context.Context, prompt string) (string, TokenUsage, error) {
+	var usage TokenUsage
 	if len(a.CmdTemplate) == 0 {
-		return "", fmt.Errorf("agent %s has no cmd_template defined", a.Agent)
+		return "", usage, fmt.Errorf("agent %s has no cmd_template defined", a.Agent)
 	}
 
 	var finalArgs []string
@@ -57,10 +66,33 @@ func (a *AgentSpec) ExecuteWithContext(ctx context.Context, prompt string) (stri
 	cmd.Stderr = io.MultiWriter(os.Stderr, &stderr)
 
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("%s CLI error: %v, stderr: %s", a.Agent, err, stderr.String())
+		return "", usage, fmt.Errorf("%s CLI error: %v, stderr: %s", a.Agent, err, stderr.String())
 	}
 
-	return strings.TrimSpace(out.String()), nil
+	// Attempt to parse token usage from stderr (primarily for Ollama --verbose)
+	usage.PromptTokens = extractOllamaTokenMetric(stderr.String(), "prompt eval count:")
+	usage.EvalTokens = extractOllamaTokenMetric(stderr.String(), "eval count:")
+
+	return strings.TrimSpace(out.String()), usage, nil
+}
+
+func extractOllamaTokenMetric(stderr string, prefix string) int {
+	// Look for lines like: "prompt eval count:    42 token(s)"
+	lines := strings.Split(stderr, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, prefix) {
+			re := regexp.MustCompile(`[0-9]+`)
+			match := re.FindString(line)
+			if match != "" {
+				val, err := strconv.Atoi(match)
+				if err == nil {
+					return val
+				}
+			}
+		}
+	}
+	return 0
 }
 
 // Clone creates a deep copy of an AgentSpec, safe for concurrent modification.

@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dothanhlam/harness-app/internal/agent"
 	"github.com/dothanhlam/harness-app/internal/config"
 	"github.com/dothanhlam/harness-app/internal/memory"
 	"github.com/dothanhlam/harness-app/internal/qa"
@@ -63,7 +64,8 @@ Output strictly a JSON array matching this format:
 
 	fmt.Println("🕵️ PM Agent is decomposing the epic into sub-sprints...")
 	fullPrompt := fmt.Sprintf("SYSTEM INSTRUCTIONS:\n%s\n\nUSER INPUT:\n%s", sysPrompt, hugeContext.String())
-	jsonPlan, err := cfg.DevOps.Execute(fullPrompt)
+	jsonPlan, doUsage, err := cfg.DevOps.Execute(fullPrompt)
+	tracker.AddTokens(doUsage.PromptTokens, doUsage.EvalTokens)
 	if err != nil {
 		log.Fatalf("❌ Epic decomposition failed: %v", err)
 	}
@@ -158,7 +160,8 @@ func executeParallel(ep EpicPipeline, cfg config.Config, tracker *telemetry.Trac
 				return
 			}
 
-			_, err = devAgent.Execute(string(devPrompt))
+			_, devUsage, err := devAgent.Execute(string(devPrompt))
+			tracker.AddTokens(devUsage.PromptTokens, devUsage.EvalTokens)
 			devResultCh <- TaskResult{TaskName: t.Name, Success: err == nil, Error: err}
 		}(i, task)
 	}
@@ -257,14 +260,18 @@ func executeParallel(ep EpicPipeline, cfg config.Config, tracker *telemetry.Trac
 			if cfg.DevOps.Agent == "ollama" {
 				ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 				defer cancel()
-				releaseNotes, err = cfg.DevOps.ExecuteWithContext(ctx, fullPrompt)
+				var doUsage agent.TokenUsage
+				releaseNotes, doUsage, err = cfg.DevOps.ExecuteWithContext(ctx, fullPrompt)
+				tracker.AddTokens(doUsage.PromptTokens, doUsage.EvalTokens)
 				if err != nil {
 					fmt.Println("⚠️ [OLLAMA THERMAL THROTTLING] DevOps agent timed out. Gracefully falling back to save CPU cycles...")
 					releaseNotes = "- DevOps auto-generation aborted (thermal fallback).\n- Check commits for details."
 					err = nil
 				}
 			} else {
-				releaseNotes, err = cfg.DevOps.Execute(fullPrompt)
+				var doUsage agent.TokenUsage
+				releaseNotes, doUsage, err = cfg.DevOps.Execute(fullPrompt)
+				tracker.AddTokens(doUsage.PromptTokens, doUsage.EvalTokens)
 			}
 
 			if err != nil {
@@ -280,8 +287,8 @@ func executeParallel(ep EpicPipeline, cfg config.Config, tracker *telemetry.Trac
 
 	// ── Phase 5: Sequential Memory Progression ──
 	UpdateState(StageCompact, 0, tracker)
-	memory.UpdateSystemMemory(&cfg.DevOps)
-	memory.CompactSystemMemory(&cfg.DevOps)
+	memory.UpdateSystemMemory(&cfg.DevOps, tracker)
+	memory.CompactSystemMemory(&cfg.DevOps, tracker)
 
 	UpdateState(StageDone, 0, tracker)
 	fmt.Printf("\n📊 [PARALLEL EPIC RESULTS] %d total, %d dev failures, %d QA failures\n",

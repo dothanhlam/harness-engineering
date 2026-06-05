@@ -6,10 +6,11 @@ import (
 	"time"
 
 	"github.com/dothanhlam/harness-app/internal/agent"
+	"github.com/dothanhlam/harness-app/internal/telemetry"
 )
 
 // UpdateSystemMemory progressively analyzes architectural correlations and archives features.
-func UpdateSystemMemory(devopsAgent *agent.AgentSpec) {
+func UpdateSystemMemory(devopsAgent *agent.AgentSpec, tracker *telemetry.Tracker) {
 	fmt.Println("🧠 [PROGRESSIVE MEMORY] Analyzing modular architectural correlations...")
 	oldBlueprint, _ := os.ReadFile("memory/system_blueprint.md")
 	currentDoD, _ := os.ReadFile("memory/definitions_of_done.md")
@@ -19,7 +20,8 @@ Identify structural dependencies, package reusability, or architectural correlat
 
 	userPrompt := fmt.Sprintf("=== REQS ===\n%s\n=== BLUEPRINT ===\n%s", string(currentDoD), string(oldBlueprint))
 	fullPrompt := fmt.Sprintf("SYSTEM INSTRUCTIONS:\n%s\n\nUSER INPUT:\n%s", sysPrompt, userPrompt)
-	correlations, err := devopsAgent.Execute(fullPrompt)
+	correlations, tu, err := devopsAgent.Execute(fullPrompt)
+	tracker.AddTokens(tu.PromptTokens, tu.EvalTokens)
 	if err == nil {
 		newContent := fmt.Sprintf("%s\n\n## [ARCHIVED FEATURE - %s]\n%s", string(oldBlueprint), time.Now().Format("2006-01-02 15:04"), correlations)
 		_ = os.WriteFile("memory/system_blueprint.md", []byte(newContent), 0644)
@@ -28,7 +30,7 @@ Identify structural dependencies, package reusability, or architectural correlat
 }
 
 // CompactSystemMemory uses AI to optimize the system_blueprint.md if it grows too large.
-func CompactSystemMemory(devopsAgent *agent.AgentSpec) {
+func CompactSystemMemory(devopsAgent *agent.AgentSpec, tracker *telemetry.Tracker) {
 	blueprintPath := "memory/system_blueprint.md"
 	data, err := os.ReadFile(blueprintPath)
 	if err != nil || len(data) < 3000 {
@@ -42,7 +44,8 @@ Keep the latest 2 features fully intact, but summarize all previous ones into ar
 Be extremely concise. Return bullet points only. Limit your response to under 150 words. Do not write filler structural prose.`
 
 	fullPrompt := fmt.Sprintf("SYSTEM INSTRUCTIONS:\n%s\n\nUSER INPUT:\n%s", sysPrompt, string(data))
-	compacted, err := devopsAgent.Execute(fullPrompt)
+	compacted, tu, err := devopsAgent.Execute(fullPrompt)
+	tracker.AddTokens(tu.PromptTokens, tu.EvalTokens)
 	if err == nil {
 		_ = os.WriteFile(blueprintPath, []byte(compacted), 0644)
 		fmt.Println("✅ [MEMORY COMPACTION] Successfully optimized Memory context window!")

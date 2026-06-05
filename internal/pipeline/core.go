@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dothanhlam/harness-app/internal/agent"
 	"github.com/dothanhlam/harness-app/internal/config"
 	"github.com/dothanhlam/harness-app/internal/memory"
 	"github.com/dothanhlam/harness-app/internal/qa"
@@ -41,7 +42,8 @@ func RunCoreHarnessLoop(cfg config.Config, tracker *telemetry.Tracker) {
 				log.Fatalf("❌ Missing configuration file: .agents/antigravity_dev_prompt.md")
 			}
 
-			_, err = cfg.Dev.Execute(string(devPrompt))
+			_, devUsage, err := cfg.Dev.Execute(string(devPrompt))
+			tracker.AddTokens(devUsage.PromptTokens, devUsage.EvalTokens)
 			if err != nil {
 				fmt.Printf("⚠️ Dev Agent run error: %v\n", err)
 			}
@@ -112,7 +114,8 @@ func RunCoreHarnessLoop(cfg config.Config, tracker *telemetry.Tracker) {
 
 Output ONLY the strict markdown checklist content. Do not include any chat filler or explanations.`, string(qaLogs), string(dodContent))
 
-			outBA, errBA := cfg.BA.Execute(baPrompt)
+			outBA, baUsage, errBA := cfg.BA.Execute(baPrompt)
+			tracker.AddTokens(baUsage.PromptTokens, baUsage.EvalTokens)
 			if errBA != nil {
 				fmt.Printf("⚠️ BA Agent failed during delegation: %v\n", errBA)
 			} else {
@@ -190,14 +193,18 @@ Output ONLY the strict markdown checklist content. Do not include any chat fille
 			if cfg.DevOps.Agent == "ollama" {
 				ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 				defer cancel()
-				releaseNotes, errDevOps = cfg.DevOps.ExecuteWithContext(ctx, fullPrompt)
+				var doUsage agent.TokenUsage
+				releaseNotes, doUsage, errDevOps = cfg.DevOps.ExecuteWithContext(ctx, fullPrompt)
+				tracker.AddTokens(doUsage.PromptTokens, doUsage.EvalTokens)
 				if errDevOps != nil {
 					fmt.Println("⚠️ [OLLAMA THERMAL THROTTLING] DevOps agent timed out. Gracefully falling back to save CPU cycles...")
 					releaseNotes = "- DevOps auto-generation aborted (thermal fallback).\n- Check commits for details."
 					errDevOps = nil
 				}
 			} else {
-				releaseNotes, errDevOps = cfg.DevOps.Execute(fullPrompt)
+				var doUsage agent.TokenUsage
+				releaseNotes, doUsage, errDevOps = cfg.DevOps.Execute(fullPrompt)
+				tracker.AddTokens(doUsage.PromptTokens, doUsage.EvalTokens)
 			}
 
 			notePath := fmt.Sprintf("%s/RELEASE_NOTES.md", targetSubfolder)
@@ -240,14 +247,18 @@ Output ONLY the strict markdown checklist content. Do not include any chat fille
 				if cfg.DevOps.Agent == "ollama" {
 					ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 					defer cancel()
-					releaseNotes, errDevOps = cfg.DevOps.ExecuteWithContext(ctx, fullPrompt)
+					var doUsage agent.TokenUsage
+					releaseNotes, doUsage, errDevOps = cfg.DevOps.ExecuteWithContext(ctx, fullPrompt)
+					tracker.AddTokens(doUsage.PromptTokens, doUsage.EvalTokens)
 					if errDevOps != nil {
 						fmt.Println("⚠️ [OLLAMA THERMAL THROTTLING] DevOps agent timed out. Gracefully falling back to save CPU cycles...")
 						releaseNotes = "- DevOps auto-generation aborted (thermal fallback).\n- Check commits for details."
 						errDevOps = nil
 					}
 				} else {
-					releaseNotes, errDevOps = cfg.DevOps.Execute(fullPrompt)
+					var doUsage agent.TokenUsage
+					releaseNotes, doUsage, errDevOps = cfg.DevOps.Execute(fullPrompt)
+					tracker.AddTokens(doUsage.PromptTokens, doUsage.EvalTokens)
 				}
 
 				notePath := fmt.Sprintf("workspace/%s/RELEASE_NOTES.md", feature)
@@ -265,8 +276,8 @@ Output ONLY the strict markdown checklist content. Do not include any chat fille
 	// FINALIZE: Memory Progression (fully sequential)
 	// =======================================================
 	UpdateState(StageCompact, 0, tracker)
-	memory.UpdateSystemMemory(&cfg.DevOps)
-	memory.CompactSystemMemory(&cfg.DevOps)
+	memory.UpdateSystemMemory(&cfg.DevOps, tracker)
+	memory.CompactSystemMemory(&cfg.DevOps, tracker)
 
 	UpdateState(StageDone, 0, tracker)
 	fmt.Println("\n🎯 SPRINT PIPELINE RUN COMPLETE. Check your /workspace folder for final artifacts!")

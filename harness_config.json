@@ -3,7 +3,7 @@
     "_comment": "BA agent: runs business analysis & drafts definitions_of_done.md. Uses 'ollama run <model_name> <prompt>'",
     "agent": "ollama",
     "model_name": "hermes3:8b",
-    "cmd_template": ["run", "{model}", "{prompt}"]
+    "cmd_template": ["run", "{model}", "{prompt}", "--verbose"]
   },
   "_dev_claude_backup": {
     "_comment": "INACTIVE — Previous dev agent: Claude CLI. Swap with 'dev' key to restore.",
@@ -16,12 +16,12 @@
     "_comment": "Dev agent: local ollama CLI.",
     "agent": "ollama",
     "model_name": "gemma4:e4b",
-    "cmd_template": ["run", "{model}", "{prompt}"]
+    "cmd_template": ["run", "{model}", "{prompt}", "--verbose"]
   },
   "devops": {
     "_comment": "DevOps agent: local ollama CLI. model_name is passed as 'ollama run <model_name>'.",
     "agent": "ollama",
     "model_name": "hermes3:8b",
-    "cmd_template": ["run", "{model}", "{prompt}"]
+    "cmd_template": ["run", "{model}", "{prompt}", "--verbose"]
   }
 }
