@@ -1,0 +1,3 @@
+[submodule "claude-tap"]
+	path = claude-tap
+	url = https://github.com/liaohch3/claude-tap.git
