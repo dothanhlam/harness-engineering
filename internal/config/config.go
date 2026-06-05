@@ -18,8 +18,9 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		BA: agent.AgentSpec{
-			Agent:       "gemini",
-			CmdTemplate: []string{"run", "{prompt}"},
+			Agent:       "ollama",
+			ModelName:   "hermes3:8b",
+			CmdTemplate: []string{"run", "{model}", "{prompt}"},
 		},
 		Dev: agent.AgentSpec{
 			Agent:       "agy",

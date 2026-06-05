@@ -25,6 +25,7 @@ func main() {
 	epicFlag := flag.String("epic", "", "Path to a directory containing epic requirements for decomposition")
 	parallelEpic := flag.Bool("parallel-epic", false, "Run epic sub-tasks concurrently with isolated workspaces")
 	baAgentCmd := flag.String("ba-agent", cfg.BA.Agent, "Command/binary to execute for Phase 0 Business Analyst")
+	baModelCmd := flag.String("ba-model", cfg.BA.ModelName, "Model name for the Phase 0 Business Analyst agent")
 	devAgentCmd := flag.String("dev-agent", cfg.Dev.Agent, "Command/binary to execute for Phase 1 Developer Coding")
 	devAgentModel := flag.String("dev-model", cfg.Dev.ModelName, "Model name for the Dev agent (sets ANTIGRAVITY_MODEL env var)")
 	devOpsAgent := flag.String("devops-agent", cfg.DevOps.Agent, "CLI agent to execute for Phase 3 DevOps documentation (e.g., ollama)")
@@ -33,6 +34,7 @@ func main() {
 
 	// Apply CLI overrides to config
 	cfg.BA.Agent = *baAgentCmd
+	cfg.BA.ModelName = *baModelCmd
 	cfg.Dev.Agent = *devAgentCmd
 	cfg.Dev.ModelName = *devAgentModel
 	cfg.DevOps.Agent = *devOpsAgent

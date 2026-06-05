@@ -1,8 +1,9 @@
 {
   "ba": {
-    "_comment": "BA agent: runs business analysis & drafts definitions_of_done.md. Uses 'gemini run <prompt>'",
-    "agent": "gemini",
-    "cmd_template": ["run", "{prompt}"]
+    "_comment": "BA agent: runs business analysis & drafts definitions_of_done.md. Uses 'ollama run <model_name> <prompt>'",
+    "agent": "ollama",
+    "model_name": "hermes3:8b",
+    "cmd_template": ["run", "{model}", "{prompt}"]
   },
   "_dev_claude_backup": {
     "_comment": "INACTIVE — Previous dev agent: Claude CLI. Swap with 'dev' key to restore.",
