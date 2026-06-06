@@ -135,6 +135,51 @@ harness-app/
 
 ---
 
+### Step 1: Sandbox Initialization & Skill Provisioning
+
+Harness Engineering features an on-demand, interactive skill installer that allows you to provision expert domain skills from the `antigravity-awesome-skills` catalog into your local workspace (`./.agents/skills`).
+
+First, initialize the mandatory sandbox directories (`workspace/`, `memory/`, `.agents/skills/`) and scaffold the baseline configuration if missing:
+```bash
+make init
+```
+
+Next, run the interactive installer to select and install the expert toolkits required for your development task:
+```bash
+make skills
+```
+
+This will open an interactive menu in your terminal:
+```text
+========================================================
+      Harness Engineering — Expert Skill Installer      
+========================================================
+Choose which expert domain skills to provision:
+
+  1) @clickhouse-expert         (cc-skill-clickhouse-io)
+  2) @test-driven-development   (test-driven-development)
+  3) @debugging-strategies       (debugging-strategies)
+  4) @go-clean-architecture     (golang-pro + patterns)
+  5) Install ALL available skills (Advanced/Full setup)
+  6) List currently installed skills
+  7) Remove a specific skill
+  8) Exit / Cancel
+
+========================================================
+❓ Enter choices (comma-separated, e.g. 1,3 or 5): 
+```
+
+To manage your installed skills programmatically:
+```bash
+# List all currently installed skills in the workspace
+make list-skills
+
+# Remove a specific skill from the workspace
+make remove-skill SKILL=<skill-folder-name>
+```
+
+---
+
 ### Option A: Run Locally
 
 Requires Go and Ollama installed on your machine:

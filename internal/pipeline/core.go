@@ -56,8 +56,8 @@ func RunCoreHarnessLoop(cfg config.Config, tracker *telemetry.Tracker) {
 			auditCh := make(chan error, 1)
 			testCh := make(chan *qa.TestResult, 1)
 
-			go func() { auditCh <- qa.AuditGeneratedCode("workspace") }()
-			go func() { testCh <- qa.RunTests("./workspace/...") }()
+			go func() { auditCh <- qa.AuditGeneratedCode("workspace", cfg.QAIgnore) }()
+			go func() { testCh <- qa.RunTests("workspace", cfg.QAIgnore) }()
 
 			auditErr := <-auditCh
 			testResult := <-testCh

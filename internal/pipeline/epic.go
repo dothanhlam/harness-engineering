@@ -187,7 +187,7 @@ func executeParallel(ep EpicPipeline, cfg config.Config, tracker *telemetry.Trac
 		qaWg.Add(1)
 		go func(t SubTask) {
 			defer qaWg.Done()
-			auditErr := qa.AuditGeneratedCode(t.TargetFolder)
+			auditErr := qa.AuditGeneratedCode(t.TargetFolder, cfg.QAIgnore)
 			qaResultCh <- TaskResult{TaskName: t.Name, Success: auditErr == nil, Error: auditErr}
 		}(task)
 	}

@@ -32,10 +32,37 @@ For Phase 3 (Release Notes generation and Memory Compaction), we use localized L
   ```
 * When integrated with Linear via an MCP configuration (`.mcp/devops_linear.json`), this phase can automatically update tickets with the generated release notes.
 
-## 5. Verify the Setup
-Once you have Go, Gemini, Agy, and Ollama installed, you can verify your setup by running a simple test task:
+## 5. Sandbox & Skill Management
+To keep development organized and maintain modular agent contexts, the pipeline operates inside isolated directories (`workspace/`, `memory/`, `.agents/skills/`). 
+
+You can initialize these directories and prepare your local skill toolkit using the Harness Makefile:
+
+### Sandbox Initialization
+First, run the initialization recipe to create the required directories and instantiate a baseline config:
 ```bash
-go run main.go -task "Create a simple hello world module"
+make init
+```
+
+### Interactive Skill Provisioning
+Next, run the interactive installer to choose which expert domain skills from the awesome-skills catalog to load:
+```bash
+make skills
+```
+This script will check for Node and NPX, and prompt you with a selection of expert packages (e.g., ClickHouse patterns, TDD guidelines, or Go Clean Architecture).
+
+You can also list your installed skills and prune them when no longer needed:
+```bash
+# List all currently installed skills
+make list-skills
+
+# Remove a specific skill folder
+make remove-skill SKILL=<skill-folder-name>
+```
+
+## 6. Verify the Setup
+Once you have the environment configured and the required skills provisioned, you can verify the entire setup:
+```bash
+make run -- -task "Create a simple hello world module"
 ```
 
 If the pipeline successfully flows through BA -> DEV -> QA (Audit & Tests) -> HITL -> DEVOPS -> MEMORY COMPACT without throwing any "command not found" errors, your environment is perfectly configured!

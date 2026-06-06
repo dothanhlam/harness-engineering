@@ -28,7 +28,7 @@ GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
 # ── Targets ──────────────────────────────────────────────────────────────────
 
-.PHONY: help build update-docs release docker-build docker-up docker-run docker-down
+.PHONY: help build update-docs release docker-build docker-up docker-run docker-down init skills list-skills remove-skill run clean
 
 ## help: print this help message
 help:
@@ -144,3 +144,47 @@ docker-down:
 	@echo "🐳 Stopping Docker stack..."
 	@docker compose down
 	@echo "✅ Stack stopped."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Initialization & Skill Management targets
+# ─────────────────────────────────────────────────────────────────────────────
+
+## init: create sandbox directories and harness_config.json if missing
+init:
+	@echo "📁 Creating sandbox directories..."
+	@mkdir -p workspace memory .agents/skills
+	@if [ ! -f harness_config.json ]; then \
+		echo "⚙️ Creating baseline harness_config.json..."; \
+		echo '{\n  "ba": {\n    "agent": "ollama",\n    "model_name": "hermes3:8b",\n    "cmd_template": ["run", "{model}", "{prompt}", "--verbose"]\n  },\n  "dev": {\n    "agent": "ollama",\n    "model_name": "gemma4:e4b",\n    "cmd_template": ["run", "{model}", "{prompt}", "--verbose"]\n  },\n  "devops": {\n    "agent": "ollama",\n    "model_name": "hermes3:8b",\n    "cmd_template": ["run", "{model}", "{prompt}", "--verbose"]\n  }\n}' > harness_config.json; \
+		echo "✅ Default harness_config.json created."; \
+	else \
+		echo "✅ harness_config.json already exists."; \
+	fi
+	@echo "✅ Initialization complete."
+
+## skills: run the interactive skill installer script
+skills:
+	@./scripts/init_skills.sh
+
+## list-skills: list currently installed skills
+list-skills:
+	@./scripts/init_skills.sh --list
+
+## remove-skill: remove a specific skill (usage: make remove-skill SKILL=<name>)
+remove-skill:
+	@if [ -z "$(SKILL)" ]; then \
+		echo "❌ Error: Please specify the skill to remove, e.g. make remove-skill SKILL=cc-skill-clickhouse-io"; \
+		exit 1; \
+	fi
+	@./scripts/init_skills.sh --remove "$(SKILL)"
+
+## run: execute go run main.go instantly
+run:
+	@go run main.go
+
+## clean: wipe ephemeral telemetry logs and failure logs
+clean:
+	@echo "🧹 Cleaning up telemetry and failure logs..."
+	@rm -f workspace/telemetry.json workspace/qa_error.log
+	@echo "✅ Workspace clean."
+

@@ -9,9 +9,10 @@ import (
 
 // Config holds the full harness pipeline configuration with pluggable agent specs.
 type Config struct {
-	BA     agent.AgentSpec `json:"ba"`
-	Dev    agent.AgentSpec `json:"dev"`
-	DevOps agent.AgentSpec `json:"devops"`
+	BA       agent.AgentSpec `json:"ba"`
+	Dev      agent.AgentSpec `json:"dev"`
+	DevOps   agent.AgentSpec `json:"devops"`
+	QAIgnore []string        `json:"qa_ignore"`
 }
 
 // DefaultConfig returns the built-in default configuration.
@@ -32,6 +33,7 @@ func DefaultConfig() Config {
 			ModelName:   "hermes3:8b",
 			CmdTemplate: []string{"run", "{model}", "{prompt}", "--verbose"},
 		},
+		QAIgnore: []string{},
 	}
 }
 

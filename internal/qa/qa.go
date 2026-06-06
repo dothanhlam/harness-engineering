@@ -17,10 +17,21 @@ type TestResult struct {
 
 // AuditGeneratedCode scans the directory for security risks and forbidden patterns in .go files.
 // Goroutine-safe: stateless, read-only filesystem operations.
-func AuditGeneratedCode(directory string) error {
+func AuditGeneratedCode(directory string, ignoreList []string) error {
 	var auditErr error
 	_ = filepath.Walk(directory, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() || !strings.HasSuffix(info.Name(), ".go") {
+		if err != nil {
+			return nil
+		}
+		if info.IsDir() {
+			for _, ign := range ignoreList {
+				if info.Name() == ign {
+					return filepath.SkipDir
+				}
+			}
+			return nil
+		}
+		if !strings.HasSuffix(info.Name(), ".go") {
 			return nil
 		}
 
@@ -53,14 +64,43 @@ func AuditGeneratedCode(directory string) error {
 	return auditErr
 }
 
-// RunTests executes `go test -v` on the given pattern and returns the combined result.
+// RunTests executes `go test -v` on the subdirectories of the given base directory, skipping ignored ones.
 // Goroutine-safe: spawns an independent child process.
-func RunTests(pattern string) *TestResult {
-	cmd := exec.Command("go", "test", "-v", pattern)
+func RunTests(baseDir string, ignoreList []string) *TestResult {
+	entries, err := os.ReadDir(baseDir)
+	if err != nil {
+		return &TestResult{Output: []byte(fmt.Sprintf("failed to read dir %s: %v", baseDir, err)), Err: err}
+	}
+
+	args := []string{"test", "-v"}
+	hasTargets := false
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		ignored := false
+		for _, ign := range ignoreList {
+			if entry.Name() == ign {
+				ignored = true
+				break
+			}
+		}
+		if !ignored {
+			args = append(args, fmt.Sprintf("./%s/%s/...", filepath.Clean(baseDir), entry.Name()))
+			hasTargets = true
+		}
+	}
+
+	if !hasTargets {
+		return &TestResult{Output: []byte("No test targets"), Err: nil}
+	}
+
+	cmd := exec.Command("go", args...)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
-	err := cmd.Run()
+	err = cmd.Run()
 	return &TestResult{Output: out.Bytes(), Err: err}
 }
 

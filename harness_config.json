@@ -23,5 +23,6 @@
     "agent": "ollama",
     "model_name": "hermes3:8b",
     "cmd_template": ["run", "{model}", "{prompt}", "--verbose"]
-  }
+  },
+  "qa_ignore": []
 }

@@ -31,10 +31,37 @@ Developer Agent (Giai đoạn 1) được hỗ trợ bởi CLI `agy` (Antigravit
   ollama serve
   ```
 
-## 5. Xác minh Cài đặt
-Khi bạn đã cài đặt xong Go, Gemini, Agy, và Ollama, bạn có thể xác minh thiết lập của mình bằng cách chạy một bài kiểm tra đơn giản:
+## 5. Quản lý Hộp cát (Sandbox) & Kỹ năng (Skills)
+Để giữ cho việc phát triển được tổ chức và duy trì các ngữ cảnh tác nhân mô-đun, pipeline hoạt động bên trong các thư mục cô lập (`workspace/`, `memory/`, `.agents/skills/`).
+
+Bạn có thể khởi tạo các thư mục này và chuẩn bị bộ công cụ kỹ năng cục bộ của mình bằng cách sử dụng Makefile của Harness:
+
+### Khởi tạo Hộp cát
+Đầu tiên, chạy lệnh khởi tạo để tạo các thư mục cần thiết và khởi tạo tệp cấu hình cơ bản (baseline configuration):
 ```bash
-go run main.go -task "Tạo một module hello world đơn giản"
+make init
 ```
 
-Nếu pipeline chạy thành công qua BA -> DEV -> QA -> AUDIT -> HITL -> DEVOPS mà không báo bất kỳ lỗi "command not found" nào, thì môi trường của bạn đã được định cấu hình hoàn hảo!
+### Cung cấp Kỹ năng Tương tác
+Tiếp theo, chạy trình cài đặt tương tác để chọn những kỹ năng tên miền chuyên gia từ danh mục awesome-skills để tải vào:
+```bash
+make skills
+```
+Kịch bản này sẽ kiểm tra Node và NPX, sau đó nhắc bạn chọn các gói chuyên gia (ví dụ: các mẫu thiết kế ClickHouse, hướng dẫn TDD, hoặc Kiến trúc Go Sạch).
+
+Bạn cũng có thể liệt kê các kỹ năng đã cài đặt và loại bỏ chúng khi không còn cần thiết:
+```bash
+# Liệt kê tất cả các kỹ năng hiện đã cài đặt
+make list-skills
+
+# Loại bỏ một thư mục kỹ năng cụ thể
+make remove-skill SKILL=<tên-thư-mục-kỹ-năng>
+```
+
+## 6. Xác minh Cài đặt
+Khi bạn đã cấu hình xong môi trường và cung cấp các kỹ năng cần thiết, bạn có thể xác minh toàn bộ thiết lập:
+```bash
+make run -- -task "Tạo một module hello world đơn giản"
+```
+
+Nếu pipeline chạy thành công qua BA -> DEV -> QA (Audit & Tests) -> HITL -> DEVOPS -> MEMORY COMPACT mà không báo bất kỳ lỗi "command not found" nào, thì môi trường của bạn đã được định cấu hình hoàn hảo!
