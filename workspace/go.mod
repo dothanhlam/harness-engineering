@@ -1,4 +1,4 @@
-module github.com/dothanhlam/harness-app
+module github.com/dothanhlam/harness-app/workspace
 
 go 1.25.0
 
