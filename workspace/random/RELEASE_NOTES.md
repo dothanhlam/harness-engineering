@@ -1,61 +1,53 @@
 The provided code implements a pseudo-random number generator (PRNG) packag[6D[K
-package in Go, along with various tests and benchmarks to validate its func[4D[K
-functionality and performance. The key components and behaviors are as foll[4D[K
-follows:
+package in Go with unit tests and benchmarks. Here's a breakdown of the key[3D[K
+key components:
 
-1. **Package Structure**: The code defines several types (`Error`, `Generat[8D[K
-`Generator`, `localGenerator`) and functions related to PRNG operations.
+1. The `Generator` struct:
+   - Represents the PRNG instance.
+   - Has two fields: `seed1` and `seed2`, which are used as seeds for gener[5D[K
+generating random numbers.
 
-2. **Error Type Definition**: An `Error` type is defined to encapsulate err[3D[K
-error handling in the package.
+2. The `NewGenerator` function:
+   - Accepts two integer parameters: `seed1` and `seed2`.
+   - Returns a new instance of the `Generator` struct with the provided see[3D[K
+seeds.
+   - If both seed values are zero, it automatically seeds the generator usi[3D[K
+using time-based randomness.
 
-3. **Generator Type**: A `Generator` struct represents a pseudo-random numb[4D[K
-number generator instance. It's designed to be stateful, keeping an interna[7D[K
-internal state for generating random numbers.
+3. The PRNG functions:
+   - `IntRange(min, max)`: Returns a random integer between `min` and `max`[5D[K
+`max` (inclusive).
+   - `Float()`: Returns a random float between 0 and 1.
+   - `Bytes(length)`: Returns a random byte slice of the specified length.
 
-4. **localGenerator Type**: Another stateful type named `localGenerator` is[2D[K
-is used to manage local seeded instances of the PRNG. This allows for creat[5D[K
-creating multiple generators with specific seeds and ensures their independ[8D[K
-independence.
+4. Error constants:
+   - `ErrInvalidBounds`: Represents an error for invalid input bounds.
+   - `ErrNegativeLength`: Represents an error for negative output lengths.
 
-5. **NewGenerator Function**: A function that creates a new instance of the[3D[K
-the pseudo-random number generator, optionally taking predefined seed value[5D[K
-values. If no seeds are provided or both are zero (indicating auto-seeding)[13D[K
-auto-seeding), it uses system-specific methods to derive unique seeds for e[1D[K
-each call.
+5. The `test` package:
+   - Contains unit tests for verifying the correctness and thread safety of[2D[K
+of the PRNG functions.
+   - Tests include checking uniform distribution using Chi-squared goodness[8D[K
+goodness-of-fit, seeded instance predictability, auto-seeding behavior, and[3D[K
+and concurrency tests.
 
-6. **Error Constants and Types**: The code defines several constants and er[2D[K
-error types to handle specific PRNG-related errors (`ErrMinGreaterThanMax`,[24D[K
-(`ErrMinGreaterThanMax`, `ErrNegativeSize`).
+6. The `benchmark` package:
+   - Contains benchmarks for measuring the performance of the PRNG function[8D[K
+functions.
+   - Benchmarks are provided for `IntRange`, `Float`, and `Bytes32`.
 
-7. **PRNG Operations**: Various functions are provided to perform common ps[2D[K
-pseudo-random number generation tasks, such as generating integers within a[1D[K
-a range (`IntRange`), floating-point numbers (`Float`), and byte slices of [K
-a specified size (`Bytes`). These functions respect the error constants/typ[13D[K
-constants/types when applicable.
+The unit tests cover various scenarios, including:
+- Valid range generation
+- Single-value range generation
+- Invalid bounds errors
+- Concurrency and thread safety checks
+- Uniform distribution validation using Chi-squared goodness-of-fit
+- Predictability of seeded instances
+- Auto-seeding behavior
 
-8. **Concurrency Tests**: The code includes tests that simulate multiple go[2D[K
-goroutines using PRNG operations to verify thread safety and correctness un[2D[K
-under concurrent usage.
+The benchmarks measure the performance of the PRNG functions by running the[3D[K
+them a large number of times to estimate their execution speed.
 
-9. **Distribution Uniformity Testing**: It includes Chi-squared goodness-of[11D[K
-goodness-of-fit tests for both regular and CSPRNG outputs to validate their[5D[K
-their uniform distribution properties.
-
-10. **Seeded Instance Predictability Test**: A test verifies that generator[9D[K
-generators with the same seed produce identical sequences, and different se[2D[K
-seeds result in different sequences.
-
-11. **Auto-Seeding Verification**: A test checks whether using `NewGenerato[12D[K
-`NewGenerator(0, 0)` triggers auto-seeding successfully by generating disti[5D[K
-distinct outputs.
-
-12. **Benchmarks**: The code provides benchmarks (`BenchmarkIntRange`, `Ben[4D[K
-`BenchmarkFloat`, `BenchmarkBytes32`) to measure the performance of the PRN[3D[K
-PRNG operations in terms of execution time.
-
-The tests cover a wide range of scenarios, from basic functionality checks [K
-and error handling validations to more complex statistical uniformity asses[5D[K
-assessments and concurrent usage safety. Benchmarks help in understanding h[1D[K
-how these operations scale with increasing loads, which is crucial for appl[4D[K
-applications relying heavily on random number generation.
+Overall, this PRNG package provides a simple yet functional implementation [K
+with comprehensive testing and benchmarking. It showcases best practices in[2D[K
+in Go programming, including error handling, testing, and profiling.
