@@ -78,9 +78,13 @@ go run main.go -dev-agent claude -dev-model claude-sonnet-4-20250514
 ```
 
 **Developer Agent Invocation:**
-The Developer phase leverages the `agy` (or `claude`) CLI for autonomous execution, passing goals and granting restricted access via the DI `AgentSpec` pattern:
+The Developer phase leverages `ollama` for local LLM inference. In CLI mode it runs as a subprocess; in Docker mode it communicates via HTTP API:
 ```bash
-agy --print "$DEV_PROMPT" --dangerously-skip-permissions --add-dir ./workspace --add-dir ./memory
+# Local (CLI subprocess)
+ollama run gemma4:e4b "$DEV_PROMPT" --verbose
+
+# Docker (HTTP API via OLLAMA_HOST env)
+POST http://ollama:11434/api/generate {"model": "gemma4:e4b", "prompt": "...", "stream": true}
 ```
 
 ---
@@ -92,7 +96,7 @@ harness-app/
 ├── .agents/
 │   └── antigravity_dev_prompt.md  # Autonomous Developer Agent configuration
 ├── internal/                      # Modular Harness Orchestrator core
-│   ├── agent/                     # Pluggable CLI agent DI adapter
+│   ├── agent/                     # Pluggable CLI/HTTP agent adapter
 │   ├── config/                    # JSON Configuration loader
 │   ├── memory/                    # System blueprint & AI compaction logic
 │   ├── pipeline/                  # Core loops (epic, sequential, parallel)
@@ -101,9 +105,8 @@ harness-app/
 ├── memory/
 │   ├── definitions_of_done.md    # Product specifications & validation criteria
 │   └── lessons_learned.md        # Debugging guidelines & operational history
-├── mem0-server/                  # Local Mem0 vector database backend (submodule)
-├── scripts/                      
-│   └── install_mem0.sh           # Setup script for Mem0
+├── scripts/
+│   └── docker-entrypoint.sh      # Docker entrypoint (wait for Ollama, pull models)
 ├── workspace/                    # Core development artifacts
 │   ├── email_validation/         # Modular package: Email Validation
 │   ├── landing_page/             # Modular package: Landing Page
@@ -111,6 +114,8 @@ harness-app/
 │   ├── random/                   # Modular package: Random Generation
 │   └── state.json                # JSON active pipeline stage tracker
 ├── harness_config.json           # Agent and Model configurations
+├── Dockerfile                    # Multi-stage Go build
+├── docker-compose.yml            # Harness + Ollama sidecar
 ├── go.mod                        # Module definition (github.com/dothanhlam/harness-app)
 ├── main.go                       # Slim orchestrator entrypoint
 └── README.md                     # Project documentation (this file)
@@ -121,16 +126,45 @@ harness-app/
 ## 🛠️ Getting Started & Usage
 
 ### Prerequisites
-*   **Go** (1.26.1 or higher)
-*   **Docker**: Required to run the local Mem0 vector database (`make memory-up`).
-*   **Ollama**: Must be installed and running locally (`ollama serve`) with the configured models (e.g., `hermes3:8b`, `gemma4:e4b`) to execute the BA, Dev, and DevOps phases.
+*   **Go** (1.26.1 or higher) — for local development only
+*   **Ollama**: Must be installed and running locally (`ollama serve`) with the configured models (e.g., `hermes3:8b`, `gemma4:e4b`). Not needed when using Docker.
+*   **Docker & Docker Compose**: Required for the containerized deployment.
 
-### First Time Setup
-To setup and run the memory backend before executing the orchestrator:
+### Option A: Run Locally
 ```bash
-./scripts/install_mem0.sh
-make memory-up
+# Build the binary
+make build
+
+# Run with a task
+./harness_bin --task "Create a secure bcrypt hashing module"
+
+# Run an epic concurrently
+./harness_bin --epic "./requirements/auth_epic/" --parallel-epic
 ```
+
+### Option B: Run with Docker (Recommended)
+No local Ollama installation needed — everything runs in containers:
+
+```bash
+# Build the Docker images
+make docker-build
+
+# Run a single task (models are auto-pulled on first run)
+make docker-run TASK="Create a hello world Go program"
+
+# Or start the full stack in detached mode
+make docker-up
+docker compose logs -f   # follow output
+
+# Stop everything
+make docker-down
+```
+
+The Docker setup uses a **sidecar architecture**:
+- `harness-ollama` — Official Ollama container serving LLM inference on port `11434`
+- `harness-pipeline` — The Go binary communicating with Ollama over HTTP API
+
+Model weights are stored in a persistent Docker volume (`harness-ollama-models`), so they survive container restarts. Workspace and memory directories are bind-mounted to your host so outputs persist.
 
 ---
 

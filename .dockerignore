@@ -1,0 +1,32 @@
+# Binaries
+harness_bin
+harness-app
+
+# Runtime data (mounted as volumes instead)
+workspace/
+memory/
+
+# Go workspace file (not needed in container)
+go.work
+go.work.sum
+
+# Git
+.git
+.gitignore
+.gitmodules
+
+# IDE / tooling
+.plan
+.traces
+.mcp
+.DS_Store
+
+# External services
+mem0-server/
+
+# Cache
+cache/
+
+# Documentation (not needed at runtime)
+documentation/
+README.md

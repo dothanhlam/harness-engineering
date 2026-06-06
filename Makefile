@@ -28,7 +28,7 @@ GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
 # ── Targets ──────────────────────────────────────────────────────────────────
 
-.PHONY: help build update-docs release
+.PHONY: help build update-docs release docker-build docker-up docker-run docker-down
 
 ## help: print this help message
 help:
@@ -116,3 +116,31 @@ release: build
 	@git push && git push origin "$(NEXT_VERSION)"
 	@echo ""
 	@echo "🎉 Release $(NEXT_VERSION) published successfully!"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Docker targets
+# ─────────────────────────────────────────────────────────────────────────────
+
+## docker-build: build Docker images for harness + ollama sidecar
+docker-build:
+	@echo "🐳 Building Docker images..."
+	@docker compose build
+	@echo "✅ Docker build complete."
+
+## docker-up: start the full stack (ollama + harness) in detached mode
+docker-up:
+	@echo "🐳 Starting Ollama + Harness stack..."
+	@docker compose up -d
+	@echo "✅ Stack is running. Use 'docker compose logs -f' to follow output."
+
+## docker-run: run a single task via Docker (usage: make docker-run TASK="your requirement")
+docker-run:
+	@if [ -z "$(TASK)" ]; then echo "❌ Usage: make docker-run TASK=\"your requirement\""; exit 1; fi
+	@echo "🐳 Running task in Docker: $(TASK)"
+	@docker compose run --rm harness --task "$(TASK)"
+
+## docker-down: stop and remove all containers
+docker-down:
+	@echo "🐳 Stopping Docker stack..."
+	@docker compose down
+	@echo "✅ Stack stopped."
