@@ -257,14 +257,14 @@ func executeParallel(ep EpicPipeline, cfg config.Config, tracker *telemetry.Trac
 
 			var releaseNotes string
 			var err error
-			if cfg.DevOps.Agent == "ollama" {
+			if cfg.DevOps.Agent == "llama_cpp" {
 				ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 				defer cancel()
 				var doUsage agent.TokenUsage
 				releaseNotes, doUsage, err = cfg.DevOps.ExecuteWithContext(ctx, fullPrompt)
 				tracker.AddTokens(doUsage.PromptTokens, doUsage.EvalTokens)
 				if err != nil {
-					fmt.Println("⚠️ [OLLAMA THERMAL THROTTLING] DevOps agent timed out. Gracefully falling back to save CPU cycles...")
+					fmt.Printf("⚠️ [%s THERMAL THROTTLING] DevOps agent timed out. Gracefully falling back to save CPU cycles...\n", strings.ToUpper(cfg.DevOps.Agent))
 					releaseNotes = "- DevOps auto-generation aborted (thermal fallback).\n- Check commits for details."
 					err = nil
 				}

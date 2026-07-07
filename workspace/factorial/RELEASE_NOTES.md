@@ -1,9 +1,9 @@
-- Introduce efficient factorial computation with overflow detection in the [K
-'factorial' package.
-- Implement an iterative approach for `Factorial(n)` with O(n) time complex[7D[K
-complexity and O(1) space complexity.
-- Add overflow detection and enforce an upper bound (`maxFactorialUint64 = [K
-20`) to prevent unhandled overflow or excessive computation.
-- Include utility functions: `IsFactorialOverflow(n)` for pre-computation o[1D[K
-overflow check, and `MaxSafeFactorial()` to return the maximum safe value o[1D[K
-of n.
+* Added `factorial` package for efficient factorial computation with overflow detection
+* `Factorial` function computes the factorial of a non-negative integer n with O(n) time and O(1) space complexity
+* Includes overflow detection for uint64 and enforces an upper bound to prevent unhandled overflow or excessive computation
+* `IsFactorialOverflow` utility function checks if computing factorial(n) would overflow uint64
+* `MaxSafeFactorial` utility function returns the maximum value of n for which factorial(n) can be computed without overflow in uint64
+* Comprehensive test coverage including base cases, standard cases, boundary cases, negative input, overflow detection, sequential consistency, and benchmarking
+* Package documentation and examples provided
+
+> EOF by user

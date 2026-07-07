@@ -10,12 +10,12 @@ Welcome to the **Harness Orchestration System**, a robust, state-aware automatio
 
 ```mermaid
 flowchart TD
-    BA["0. BA STAGE (ollama) - Read PRD -> Write memory/DoD"]
-    DEV["1. DEV_CODING (ollama) - Generate code into subfolder"]
+    BA["0. BA STAGE (llama.cpp) - Read PRD -> Write memory/DoD"]
+    DEV["1. DEV_CODING (llama.cpp) - Generate code into subfolder"]
     QA["2. QA_TESTING (go test) - Parallel Audit & Test Suite - Auto-heal up to 3 times"]
     BA_REF["3. BA_REFACTOR - Delegation Protocol (Rewrite DoD)"]
     HITL["4. HUMAN_IN_THE_LOOP - Manual terminal approval"]
-    DEVOPS["5. DEVOPS_DELIVER - Ollama Release Notes"]
+    DEVOPS["5. DEVOPS_DELIVER - llama.cpp Release Notes"]
     COMPACT["6. MEMORY_COMPACTION - Mem0 Archiving"]
     DONE["7. COMPLETED"]
 
@@ -30,14 +30,14 @@ flowchart TD
 ```
 
 The orchestrator transitions autonomously through defined pipeline states (`internal/pipeline/stages.go`), persisting its current state to `workspace/state.json`. It features robust **Goroutine Concurrency** and **Mutex-protected Telemetry Tracking** to export runtime metrics to `workspace/telemetry.json`.
-*   **`DEV_CODING`**: Invokes the configured developer agent (`agy` CLI by default) to synthesize and self-verify project files. In Epic mode, this can run concurrently across isolated workspaces.
+*   **`DEV_CODING`**: Invokes the configured developer agent (`agy` CLI by default) to synthesize and self-verify project files. The output target subfolder is dynamically determined by parsing the `# TASK:` or `- Target Subfolder:` tags generated in the `definitions_of_done.md`. If absent, it gracefully defaults to `workspace/default_task/`. In Epic mode, this runs concurrently across isolated workspaces.
 *   **`QA_TESTING`**: Runs in parallel using goroutines:
     *   **Security Audit**: Strictly analyzes generated `.go` files for forbidden imports (like `os/exec`), destructive commands, or hardcoded credentials.
     *   **Test Suite**: Automatically executes the repository's test hooks (`go test -v ./workspace/...`). 
     If QA fails, combined errors are logged to `workspace/qa_error.log` for AI self-healing.
 *   **`BA_REFACTOR` (Delegation Protocol)**: A dynamic non-linear delegation loop. If the Developer agent exhausts its QA healing retries, the orchestrator safely delegates back to the BA agent to rewrite and clarify the `definitions_of_done.md` based on the compilation errors.
 *   **`HUMAN_IN_THE_LOOP`**: Halts the pipeline, requiring user approval via terminal (auto-approves after 30s) before integration.
-*   **`DEVOPS_DELIVER`**: Calls a local Ollama instance to summarize the codebase changes and compile `workspace/RELEASE_NOTES.md`.
+*   **`DEVOPS_DELIVER`**: Calls a local llama.cpp instance to summarize the codebase changes and compile `workspace/RELEASE_NOTES.md`.
 *   **`MEMORY_COMPACTION`**: Progressively analyzes requirements and archives architectural correlations directly into the local Mem0 vector database for semantic search.
 *   **`COMPLETED`**: Finalizes the build, exports pipeline telemetry, and closes the loop.
 
@@ -56,19 +56,23 @@ You can switch the agents, models, and endpoints used in each phase dynamically 
 | Flag | Default Value | Description |
 |---|---|---|
 | `-task` | `""` | Raw requirement string. Triggers Phase 0 Business Analyst to update `definitions_of_done.md` |
+| `-target` | `""` | Explicit target subfolder to output generated code (e.g. `workspace/custom_folder`) |
 | `-epic` | `""` | Path to a directory containing epic requirements. Triggers the Epic Orchestrator. |
 | `-parallel-epic` | `false` | Run epic sub-tasks concurrently with isolated memory workspaces. |
-| `-ba-agent` | `"ollama"` | Binary/CLI name used for Phase 0 Business Analyst |
-| `-ba-model` | `"hermes3:8b"` | Model name for the Phase 0 Business Analyst agent |
-| `-dev-agent` | `"ollama"` | Binary/CLI name used for Phase 1 Developer Coding |
-| `-dev-model` | `"gemma4:e4b"` | Model name for the Dev agent |
-| `-devops-agent`| `"ollama"`| Binary/CLI name used for Phase 3 DevOps documentation |
-| `-devops-model`| `"hermes3:8b"`| Model name to execute for Phase 3 DevOps documentation |
+| `-ba-agent` | `"llama_cpp"` | Binary/CLI name used for Phase 0 Business Analyst |
+| `-ba-model` | `"hf://NousResearch/Hermes-3-Llama-3.1-8B-GGUF:Q4_K_M"` | Model path for the Phase 0 Business Analyst agent |
+| `-dev-agent` | `"llama_cpp"` | Binary/CLI name used for Phase 1 Developer Coding |
+| `-dev-model` | `"hf://bartowski/Qwen2.5-Coder-14B-Instruct-GGUF:Q4_K_M"` | Model path for the Dev agent |
+| `-devops-agent`| `"llama_cpp"`| Binary/CLI name used for Phase 3 DevOps documentation |
+| `-devops-model`| `"hf://NousResearch/Hermes-3-Llama-3.1-8B-GGUF:Q4_K_M"`| Model path to execute for Phase 3 DevOps documentation |
 
 **Example usages:**
 ```bash
 # Run with standard agents, triggering the BA phase with a raw task requirement
 go run main.go -task "Create a secure bcrypt hashing module"
+
+# Force output to a specific subfolder instead of generating one dynamically
+go run main.go -task "Create a secure bcrypt hashing module" -target "workspace/security"
 
 # Trigger the Epic Orchestrator to decompose and implement a large folder of requirements concurrently
 go run main.go -epic "./requirements/auth_epic/" -parallel-epic
@@ -77,14 +81,23 @@ go run main.go -epic "./requirements/auth_epic/" -parallel-epic
 go run main.go -dev-agent claude -dev-model claude-sonnet-4-20250514
 ```
 
-**Developer Agent Invocation:**
-The Developer phase leverages `ollama` for local LLM inference. In CLI mode it runs as a subprocess; in Docker mode it communicates via HTTP API:
-```bash
-# Local (CLI subprocess)
-ollama run gemma4:e4b "$DEV_PROMPT" --verbose
+**Engine Migration: Ollama to llama.cpp**
+The system has migrated its core execution engine from Ollama to the native `llama.cpp` flat binary (`llama-cli`) for local LLM inference (while retaining HTTP fallback for Docker). This provides zero-overhead execution and enables direct low-level parameter tuning.
 
-# Docker (HTTP API via OLLAMA_HOST env)
-POST http://ollama:11434/api/generate {"model": "gemma4:e4b", "prompt": "...", "stream": true}
+**Installing New Models for llama.cpp:**
+llama.cpp natively supports downloading and caching models from the Hugging Face Hub using the `hf://` prefix. Models will be stored in `~/.cache/huggingface/hub`.
+1. Update `harness_config.json` with the path to the new model using the format `hf://<repo>:<quant>`:
+   ```json
+   "dev": {
+     "agent": "llama_cpp",
+     "model_name": "hf://bartowski/Qwen2.5-Coder-14B-Instruct-GGUF:Q4_K_M"
+   }
+   ```
+
+**Developer Agent Invocation (Local CLI):**
+```bash
+# Local (CLI subprocess via llama.cpp)
+llama-cli -hf bartowski/Qwen2.5-Coder-14B-Instruct-GGUF:Q4_K_M -c 16384 --flash-attn -p "$DEV_PROMPT"
 ```
 
 ---
@@ -106,7 +119,7 @@ harness-app/
 │   ├── definitions_of_done.md    # Product specifications & validation criteria
 │   └── lessons_learned.md        # Debugging guidelines & operational history
 ├── scripts/
-│   └── docker-entrypoint.sh      # Docker entrypoint (wait for Ollama, pull models)
+│   └── docker-entrypoint.sh      # Docker entrypoint
 ├── workspace/                    # Core development artifacts
 │   ├── email_validation/         # Modular package: Email Validation
 │   ├── landing_page/             # Modular package: Landing Page
@@ -115,7 +128,7 @@ harness-app/
 │   └── state.json                # JSON active pipeline stage tracker
 ├── harness_config.json           # Agent and Model configurations
 ├── Dockerfile                    # Multi-stage Go build
-├── docker-compose.yml            # Harness + Ollama sidecar
+├── docker-compose.yml            # Harness sidecar
 ├── go.mod                        # Module definition (github.com/dothanhlam/harness-app)
 ├── main.go                       # Slim orchestrator entrypoint
 └── README.md                     # Project documentation (this file)
@@ -130,7 +143,7 @@ harness-app/
 | Requirement | Local Dev | Docker |
 |---|:---:|:---:|
 | **Go** 1.26.1+ | ✅ Required | ❌ Not needed |
-| **Ollama** (running locally) | ✅ Required | ❌ Not needed |
+| **llama.cpp** (running locally) | ✅ Required | ❌ Not needed |
 | **Docker & Docker Compose** | ❌ Not needed | ✅ Required |
 
 ---
@@ -182,12 +195,11 @@ make remove-skill SKILL=<skill-folder-name>
 
 ### Option A: Run Locally
 
-Requires Go and Ollama installed on your machine:
+Requires Go and llama.cpp installed on your machine:
 
 ```bash
-# 1. Pull the required models
-ollama pull hermes3:8b
-ollama pull gemma4:e4b
+# 1. Models will be automatically managed and cached in ~/.cache/huggingface/hub
+# using the hf:// prefix.
 
 # 2. Build the binary
 make build
@@ -203,7 +215,7 @@ make build
 
 ### Option B: Run with Docker (Recommended)
 
-No local Go or Ollama installation needed — everything runs in containers.
+No local Go or llama.cpp installation needed — everything runs in containers.
 
 #### Quick Start
 
@@ -220,36 +232,35 @@ make docker-down
 
 #### Architecture
 
-The Docker setup uses a **sidecar architecture** with two containers:
+The Docker setup uses a **single-container architecture** that bundles the `llama.cpp` inference engine alongside the Go orchestrator.
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
-│  Docker Compose Network                                     │
+│  Docker Container                                           │
 │                                                             │
-│  ┌──────────────────┐     HTTP API      ┌────────────────┐  │
-│  │  harness-pipeline│ ──────────────►   │ harness-ollama │  │
-│  │  (Go binary)     │  :11434/api/      │ (LLM server)   │  │
-│  └────────┬─────────┘  generate         └────────┬───────┘  │
+│  ┌──────────────────┐     Subprocess    ┌────────────────┐  │
+│  │  harness-pipeline│ ──────────────►   │ llama-cli      │  │
+│  │  (Go binary)     │                   │ (LLM Engine)   │  │
+│  └────────┬─────────┘                   └────────┬───────┘  │
 │           │                                      │          │
 └───────────┼──────────────────────────────────────┼──────────┘
-            │ bind mount                           │ named volume
+            │ bind mount                           │ bind mount
             ▼                                      ▼
-   ./workspace/  (host)                   ollama_models (docker)
-   ./memory/     (host)                   (~5GB model weights)
+   ./workspace/  (host)                   ~/ai_models (host)
+   ./memory/     (host)                   (Model weights)
 ```
 
 | Container | Image | Purpose |
 |---|---|---|
-| `harness-ollama` | `ollama/ollama:latest` | Serves LLM inference on port `11434` |
-| `harness-pipeline` | Built from `Dockerfile` | Runs the Go orchestrator, talks to Ollama via HTTP |
+| `harness-pipeline` | Built from `Dockerfile` | Runs the Go orchestrator and native `llama.cpp` execution engine |
 
-#### 📂 Volume Mounts — Accessing Generated Code on Your Host
+#### 📂 Volume Mounts — Accessing Generated Code & Models
 
-The `workspace/` and `memory/` directories are **bind-mounted** from your host machine into the container. This means:
+The `workspace/`, `memory/`, and your local model directory are **bind-mounted** from your host machine into the container. This means:
 
 - **All code generated by the AI agents inside Docker appears instantly on your host filesystem.**
-- You can open `./workspace/` in your IDE (VS Code, GoLand, etc.) and watch files appear in real-time as the pipeline runs.
-- Pipeline state (`workspace/state.json`) and telemetry (`workspace/telemetry.json`) are also visible on the host.
+- You can open `./workspace/` in your IDE and watch files appear in real-time as the pipeline runs.
+- **You MUST have your `.gguf` models downloaded to your host's `~/ai_models/` directory before running the container.**
 
 ```yaml
 # From docker-compose.yml — these lines make it work:
@@ -257,34 +268,21 @@ volumes:
   - ./workspace:/app/workspace   # ← Generated code lives here on your host
   - ./memory:/app/memory         # ← Agent memory (DoD, blueprint) on your host
   - ./harness_config.json:/app/harness_config.json:ro  # ← Config (read-only)
+  - ~/.cache/huggingface/hub:/root/.cache/huggingface/hub:ro # ← Hugging Face model cache mapped into container
 ```
 
-> **Tip:** After a pipeline run, browse `./workspace/<feature_name>/` on your host to see the generated Go packages, tests, and release notes.
-
-#### Model Storage
-
-Model weights (`hermes3:8b` ~4.7GB, `gemma4:e4b`) are stored in a persistent **Docker named volume** (`harness-ollama-models`). They are only downloaded on first run and survive container restarts.
-
-```bash
-# Check which models are cached
-curl http://localhost:11434/api/tags | jq '.models[].name'
-
-# Force re-pull a model
-docker compose exec ollama ollama pull hermes3:8b
-```
+> **Tip:** After a pipeline run, browse `./workspace/<task_name>/` on your host to see the generated Go packages, tests, and release notes. The folder name (`<task_name>`) is dynamically determined by the Business Analyst agent based on your raw requirement.
 
 #### All Docker Commands
 
 ```bash
 make docker-build   # Build the harness image
-make docker-up      # Start stack in detached mode (ollama + harness)
+make docker-up      # Start stack in detached mode
 make docker-run TASK="your requirement"  # Run a single task
 make docker-down    # Stop and remove containers
 
 # Useful docker compose commands
 docker compose logs -f              # Follow all output
-docker compose logs -f harness      # Follow harness output only
-docker compose exec ollama ollama list  # List cached models
 ```
 
 ---

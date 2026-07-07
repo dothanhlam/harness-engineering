@@ -15,19 +15,28 @@ Read the criteria in `/memory/definitions_of_done.md` and check if a `/workspace
 3. **Targeted Write/Repair:** Modify or rewrite the files strictly inside the designated feature subfolder (e.g., `/workspace/feature_name/`). Ensure package names are lowercase and match the subfolder name.
 4. **Compile Verification:** Run `go build -o /dev/null ./workspace/...` to ensure your fixes solve the issue. Repeat internally until local syntax errors are 0.
 
+## 2. OUTPUT FORMAT FOR CODE GENERATION
+
+You MUST output the code for each file exactly using the following format so it can be parsed and saved automatically. DO NOT output any other conversational text.
+
+### FILE: workspace/feature_name/filename.go
+```go
+package feature_name
+
+// WRITE THE ACTUAL FULL IMPLEMENTATION CODE HERE
+// Do not output placeholder comments!
+```
+
+### FILE: workspace/feature_name/filename_test.go
+```go
+package feature_name
+
+// WRITE THE ACTUAL FULL UNIT TESTS HERE
+// Do not output placeholder comments!
+```
+
 ## 3. STRUCTURAL INVARIANTS
 
 - All subfolders must link dynamically to the root `/workspace/go.mod` using `module github.com/dothanhlam/harness-app`.
 - Never use `package main` in modular feature directories.
-
-## 4. OUTPUT REQUIREMENTS
-
-Output ONLY a strict JSON block to stdout upon successful compilation:
-
-```json
-{
-  "status": "COMPILED_SUCCESS",
-  "engine": "agy_dev",
-  "healed": true
-}
-```
+- Ensure package names are lowercase and match the subfolder name.

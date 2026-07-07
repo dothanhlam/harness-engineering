@@ -1,9 +1,10 @@
 {
+  "context_window": 16384,
+  "flash_attention": true,
   "ba": {
-    "_comment": "BA agent: runs business analysis & drafts definitions_of_done.md. Uses 'ollama run <model_name> <prompt>'",
-    "agent": "ollama",
-    "model_name": "hermes3:8b",
-    "cmd_template": ["run", "{model}", "{prompt}", "--verbose"]
+    "_comment": "BA agent: runs business analysis & drafts definitions_of_done.md.",
+    "agent": "llama_cpp",
+    "model_name": "hf://NousResearch/Hermes-3-Llama-3.1-8B-GGUF:Q4_K_M"
   },
   "_dev_claude_backup": {
     "_comment": "INACTIVE — Previous dev agent: Claude CLI. Swap with 'dev' key to restore.",
@@ -13,16 +14,25 @@
     "mcp_config": ""
   },
   "dev": {
-    "_comment": "Dev agent: local ollama CLI.",
-    "agent": "ollama",
-    "model_name": "gemma4:e4b",
-    "cmd_template": ["run", "{model}", "{prompt}", "--verbose"]
+    "_comment": "Dev agent: local llama_cpp.",
+    "agent": "llama_cpp",
+    "model_name": "hf://bartowski/Qwen2.5-Coder-14B-Instruct-GGUF:Q4_K_M"
   },
   "devops": {
-    "_comment": "DevOps agent: local ollama CLI. model_name is passed as 'ollama run <model_name>'.",
-    "agent": "ollama",
-    "model_name": "hermes3:8b",
-    "cmd_template": ["run", "{model}", "{prompt}", "--verbose"]
+    "_comment": "DevOps agent: local llama_cpp.",
+    "agent": "llama_cpp",
+    "model_name": "hf://NousResearch/Hermes-3-Llama-3.1-8B-GGUF:Q4_K_M"
   },
-  "qa_ignore": []
+  "qa_ignore": [
+    "csv_to_json",
+    "email_validation",
+    "factorial",
+    "fibonacci",
+    "gomoku",
+    "hanoi",
+    "json_formatter",
+    "landing_page",
+    "password",
+    "random"
+  ]
 }

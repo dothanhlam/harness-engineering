@@ -24,12 +24,22 @@ func RunCoreHarnessLoop(cfg config.Config, tracker *telemetry.Tracker) {
 	// CORE LOOP: DEV 🔀 QA (SELF-HEALING) & DELEGATION
 	// =======================================================
 	_ = os.Remove("workspace/qa_error.log")
+	_ = os.RemoveAll("workspace/default_task")
 	success := false
 	maxDelegations := 1
 
 	// Context Reset: ensure the Dev agent starts with a clear loop
 	_ = os.RemoveAll(".antigravitycli")
 	_ = os.RemoveAll(".claude")
+
+	// Ignore existing directories so we only test newly generated code
+	if existingDirs, err := os.ReadDir("workspace"); err == nil {
+		for _, d := range existingDirs {
+			if d.IsDir() {
+				cfg.QAIgnore = append(cfg.QAIgnore, d.Name())
+			}
+		}
+	}
 
 	for delegation := 0; delegation <= maxDelegations; delegation++ {
 		for retry := 0; retry < MaxRetries; retry++ {
@@ -42,10 +52,73 @@ func RunCoreHarnessLoop(cfg config.Config, tracker *telemetry.Tracker) {
 				log.Fatalf("❌ Missing configuration file: .agents/antigravity_dev_prompt.md")
 			}
 
-			_, devUsage, err := cfg.Dev.Execute(string(devPrompt))
+			// Context Injection for local LLMs (they lack filesystem read tools)
+			var finalPrompt string
+			
+			// Parse the feature name from definitions_of_done.md to replace placeholders
+			var parsedFeatureName string
+			var targetSubfolder string
+			dod, errDod := os.ReadFile("memory/definitions_of_done.md")
+			if errDod == nil {
+				for _, line := range strings.Split(string(dod), "\n") {
+					if strings.HasPrefix(line, "- Target Subfolder: ") {
+						targetSubfolder = strings.TrimSpace(strings.TrimPrefix(line, "- Target Subfolder: "))
+						parsedFeatureName = filepath.Base(targetSubfolder)
+					} else if strings.HasPrefix(line, "# TASK: ") && parsedFeatureName == "" {
+						parsedFeatureName = strings.TrimSpace(strings.TrimPrefix(line, "# TASK: "))
+					}
+				}
+			}
+			
+			if parsedFeatureName == "" {
+				parsedFeatureName = "default_task"
+			}
+			if targetSubfolder == "" {
+				targetSubfolder = fmt.Sprintf("workspace/%s", parsedFeatureName)
+			}
+
+			if cfg.Dev.Agent == "llama_cpp" {
+				var sb strings.Builder
+				
+				// Replace "feature_name" placeholder in the prompt template
+				promptStr := string(devPrompt)
+				if parsedFeatureName != "" {
+					promptStr = strings.ReplaceAll(promptStr, "feature_name", parsedFeatureName)
+					promptStr = strings.ReplaceAll(promptStr, "filename", parsedFeatureName)
+				}
+				sb.WriteString(promptStr)
+				
+				if errDod == nil {
+					sb.WriteString("\n\n=== CONTEXT: memory/definitions_of_done.md ===\n")
+					sb.WriteString(string(dod))
+				}
+				
+				blueprint, err := os.ReadFile("memory/system_blueprint.md")
+				if err == nil {
+					sb.WriteString("\n\n=== CONTEXT: memory/system_blueprint.md ===\n")
+					sb.WriteString(string(blueprint))
+				}
+				
+				qaErr, err := os.ReadFile("workspace/qa_error.log")
+				if err == nil {
+					sb.WriteString("\n\n=== CONTEXT: workspace/qa_error.log (Fix these errors!) ===\n")
+					sb.WriteString(string(qaErr))
+				}
+				
+				finalPrompt = sb.String()
+			} else {
+				finalPrompt = string(devPrompt)
+			}
+
+			outDev, devUsage, err := cfg.Dev.Execute(finalPrompt)
 			tracker.AddTokens(devUsage.PromptTokens, devUsage.EvalTokens)
 			if err != nil {
 				fmt.Printf("⚠️ Dev Agent run error: %v\n", err)
+			}
+
+			// Extract and write generated code files if agent is llama_cpp
+			if cfg.Dev.Agent == "llama_cpp" {
+				parseAndWriteGeneratedFiles(outDev)
 			}
 
 			// ── PHASE 2: QA VERIFICATION (PARALLEL AUDIT + TESTS) ──
@@ -56,8 +129,21 @@ func RunCoreHarnessLoop(cfg config.Config, tracker *telemetry.Tracker) {
 			auditCh := make(chan error, 1)
 			testCh := make(chan *qa.TestResult, 1)
 
-			go func() { auditCh <- qa.AuditGeneratedCode("workspace", cfg.QAIgnore) }()
-			go func() { testCh <- qa.RunTests("workspace", cfg.QAIgnore) }()
+			go func() { 
+				if cfg.ForceRegression {
+					auditCh <- qa.AuditGeneratedCode("workspace", cfg.QAIgnore)
+				} else {
+					auditCh <- qa.AuditGeneratedCode(targetSubfolder, nil)
+				}
+			}()
+			
+			go func() { 
+				if cfg.ForceRegression {
+					testCh <- qa.RunTests("workspace", true, cfg.QAIgnore) 
+				} else {
+					testCh <- qa.RunTests(targetSubfolder, false, nil)
+				}
+			}()
 
 			auditErr := <-auditCh
 			testResult := <-testCh
@@ -173,6 +259,13 @@ Output ONLY the strict markdown checklist content. Do not include any chat fille
 			}
 		}
 	}
+	
+	if parsedFeatureName == "" {
+		parsedFeatureName = "default_task"
+	}
+	if targetSubfolder == "" {
+		targetSubfolder = fmt.Sprintf("workspace/%s", parsedFeatureName)
+	}
 
 	if targetSubfolder != "" {
 		featureFiles, _ := os.ReadDir(targetSubfolder)
@@ -190,14 +283,14 @@ Output ONLY the strict markdown checklist content. Do not include any chat fille
 
 			var releaseNotes string
 			var errDevOps error
-			if cfg.DevOps.Agent == "ollama" {
+			if cfg.DevOps.Agent == "llama_cpp" {
 				ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 				defer cancel()
 				var doUsage agent.TokenUsage
 				releaseNotes, doUsage, errDevOps = cfg.DevOps.ExecuteWithContext(ctx, fullPrompt)
 				tracker.AddTokens(doUsage.PromptTokens, doUsage.EvalTokens)
 				if errDevOps != nil {
-					fmt.Println("⚠️ [OLLAMA THERMAL THROTTLING] DevOps agent timed out. Gracefully falling back to save CPU cycles...")
+					fmt.Printf("⚠️ [%s THERMAL THROTTLING] DevOps agent timed out. Gracefully falling back to save CPU cycles...\n", strings.ToUpper(cfg.DevOps.Agent))
 					releaseNotes = "- DevOps auto-generation aborted (thermal fallback).\n- Check commits for details."
 					errDevOps = nil
 				}
@@ -244,14 +337,14 @@ Output ONLY the strict markdown checklist content. Do not include any chat fille
 
 				var releaseNotes string
 				var errDevOps error
-				if cfg.DevOps.Agent == "ollama" {
+				if cfg.DevOps.Agent == "llama_cpp" {
 					ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 					defer cancel()
 					var doUsage agent.TokenUsage
 					releaseNotes, doUsage, errDevOps = cfg.DevOps.ExecuteWithContext(ctx, fullPrompt)
 					tracker.AddTokens(doUsage.PromptTokens, doUsage.EvalTokens)
 					if errDevOps != nil {
-						fmt.Println("⚠️ [OLLAMA THERMAL THROTTLING] DevOps agent timed out. Gracefully falling back to save CPU cycles...")
+						fmt.Printf("⚠️ [%s THERMAL THROTTLING] DevOps agent timed out. Gracefully falling back to save CPU cycles...\n", strings.ToUpper(cfg.DevOps.Agent))
 						releaseNotes = "- DevOps auto-generation aborted (thermal fallback).\n- Check commits for details."
 						errDevOps = nil
 					}
@@ -281,4 +374,45 @@ Output ONLY the strict markdown checklist content. Do not include any chat fille
 
 	UpdateState(StageDone, 0, tracker)
 	fmt.Println("\n🎯 SPRINT PIPELINE RUN COMPLETE. Check your /workspace folder for final artifacts!")
+}
+
+// parseAndWriteGeneratedFiles extracts file paths and code blocks from the raw LLM output and writes them to the workspace.
+func parseAndWriteGeneratedFiles(output string) {
+	lines := strings.Split(output, "\n")
+	var currentFile string
+	var currentContent []string
+	inCodeBlock := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "### FILE: ") {
+			currentFile = strings.TrimSpace(strings.TrimPrefix(trimmed, "### FILE: "))
+			currentContent = []string{}
+			inCodeBlock = false
+			continue
+		}
+		
+		if currentFile != "" && strings.HasPrefix(trimmed, "```") {
+			if !inCodeBlock {
+				inCodeBlock = true
+				continue
+			} else {
+				// End of code block, write file
+				inCodeBlock = false
+				
+				// Make directories
+				dir := filepath.Dir(currentFile)
+				_ = os.MkdirAll(dir, 0755)
+				_ = os.WriteFile(currentFile, []byte(strings.Join(currentContent, "\n")), 0644)
+				
+				fmt.Printf("📝 Wrote generated file: %s\n", currentFile)
+				currentFile = "" // reset
+				continue
+			}
+		}
+		
+		if inCodeBlock {
+			currentContent = append(currentContent, line)
+		}
+	}
 }

@@ -23,16 +23,19 @@ func main() {
 	// CLI flags with config-based defaults
 	taskFlag := flag.String("task", "", "Raw requirement to trigger Phase 0 Business Analyst")
 	epicFlag := flag.String("epic", "", "Path to a directory containing epic requirements for decomposition")
+	targetFlag := flag.String("target", "", "Explicit target subfolder to output generated code (e.g. workspace/custom_folder)")
+	forceRegression := flag.Bool("force-regression", false, "Force QA to run tests across all features in workspace instead of just the target feature")
 	parallelEpic := flag.Bool("parallel-epic", false, "Run epic sub-tasks concurrently with isolated workspaces")
 	baAgentCmd := flag.String("ba-agent", cfg.BA.Agent, "Command/binary to execute for Phase 0 Business Analyst")
 	baModelCmd := flag.String("ba-model", cfg.BA.ModelName, "Model name for the Phase 0 Business Analyst agent")
 	devAgentCmd := flag.String("dev-agent", cfg.Dev.Agent, "Command/binary to execute for Phase 1 Developer Coding")
 	devAgentModel := flag.String("dev-model", cfg.Dev.ModelName, "Model name for the Dev agent (sets ANTIGRAVITY_MODEL env var)")
-	devOpsAgent := flag.String("devops-agent", cfg.DevOps.Agent, "CLI agent to execute for Phase 3 DevOps documentation (e.g., ollama)")
+	devOpsAgent := flag.String("devops-agent", cfg.DevOps.Agent, "CLI agent to execute for Phase 3 DevOps documentation (e.g., llama_cpp)")
 	devOpsModel := flag.String("devops-model", cfg.DevOps.ModelName, "Model name to execute for Phase 3 DevOps documentation")
 	flag.Parse()
 
 	// Apply CLI overrides to config
+	cfg.ForceRegression = *forceRegression
 	cfg.BA.Agent = *baAgentCmd
 	cfg.BA.ModelName = *baModelCmd
 	cfg.Dev.Agent = *devAgentCmd
@@ -63,12 +66,20 @@ func main() {
 		fmt.Printf("\n🎯 Raw requirement received: '%s'\n", *taskFlag)
 		fmt.Printf("🤖 BA Agent (%s) is drafting the Definitions of Done...\n", cfg.BA.Agent)
 
+		var targetInstructions string
+		if *targetFlag != "" {
+			targetInstructions = fmt.Sprintf("Start the output with exactly: \"# TASK: <snake_case_name>\"\nFollowed by: \"- Target Subfolder: %s\"", *targetFlag)
+		} else {
+			targetInstructions = "Start the output with exactly: \"# TASK: <snake_case_name>\"\nFollowed by: \"- Target Subfolder: workspace/<snake_case_name>\""
+		}
+
 		baPrompt := fmt.Sprintf(`
 You are an expert Business Analyst. 
 Take this raw requirement: "%s".
 Analyze it and generate a standardized, highly technical 'definitions_of_done.md' layout.
-Output ONLY the strict markdown checklist content. Do not include any chat filler or explanations.
-`, *taskFlag)
+%s
+Then, output the strict markdown checklist content. Do not include any chat filler or explanations.
+`, *taskFlag, targetInstructions)
 
 		outBA, tu, err := cfg.BA.Execute(baPrompt)
 		tracker.AddTokens(tu.PromptTokens, tu.EvalTokens)

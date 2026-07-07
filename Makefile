@@ -121,15 +121,15 @@ release: build
 # Docker targets
 # ─────────────────────────────────────────────────────────────────────────────
 
-## docker-build: build Docker images for harness + ollama sidecar
+## docker-build: build Docker images for harness sidecar
 docker-build:
 	@echo "🐳 Building Docker images..."
 	@docker compose build
 	@echo "✅ Docker build complete."
 
-## docker-up: start the full stack (ollama + harness) in detached mode
+## docker-up: start the full stack (harness) in detached mode
 docker-up:
-	@echo "🐳 Starting Ollama + Harness stack..."
+	@echo "🐳 Starting Harness stack..."
 	@docker compose up -d
 	@echo "✅ Stack is running. Use 'docker compose logs -f' to follow output."
 
@@ -155,7 +155,7 @@ init:
 	@mkdir -p workspace memory .agents/skills
 	@if [ ! -f harness_config.json ]; then \
 		echo "⚙️ Creating baseline harness_config.json..."; \
-		echo '{\n  "ba": {\n    "agent": "ollama",\n    "model_name": "hermes3:8b",\n    "cmd_template": ["run", "{model}", "{prompt}", "--verbose"]\n  },\n  "dev": {\n    "agent": "ollama",\n    "model_name": "gemma4:e4b",\n    "cmd_template": ["run", "{model}", "{prompt}", "--verbose"]\n  },\n  "devops": {\n    "agent": "ollama",\n    "model_name": "hermes3:8b",\n    "cmd_template": ["run", "{model}", "{prompt}", "--verbose"]\n  }\n}' > harness_config.json; \
+		echo '{\n  "ba": {\n    "agent": "llama_cpp",\n    "model_name": "hf://NousResearch/Hermes-3-Llama-3.1-8B-GGUF:Q4_K_M"\n  },\n  "dev": {\n    "agent": "llama_cpp",\n    "model_name": "hf://bartowski/Qwen2.5-Coder-14B-Instruct-GGUF:Q4_K_M"\n  },\n  "devops": {\n    "agent": "llama_cpp",\n    "model_name": "hf://NousResearch/Hermes-3-Llama-3.1-8B-GGUF:Q4_K_M"\n  }\n}' > harness_config.json; \
 		echo "✅ Default harness_config.json created."; \
 	else \
 		echo "✅ harness_config.json already exists."; \

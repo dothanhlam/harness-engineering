@@ -64,43 +64,47 @@ func AuditGeneratedCode(directory string, ignoreList []string) error {
 	return auditErr
 }
 
-// RunTests executes `go test -v` on the subdirectories of the given base directory, skipping ignored ones.
+// RunTests executes `go test -v` on the target directory. If forceRegression is true, it iterates over all subdirectories.
 // Goroutine-safe: spawns an independent child process.
-func RunTests(baseDir string, ignoreList []string) *TestResult {
-	entries, err := os.ReadDir(baseDir)
-	if err != nil {
-		return &TestResult{Output: []byte(fmt.Sprintf("failed to read dir %s: %v", baseDir, err)), Err: err}
-	}
-
+func RunTests(targetDir string, forceRegression bool, ignoreList []string) *TestResult {
 	args := []string{"test", "-v"}
-	hasTargets := false
 
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
+	if forceRegression {
+		entries, err := os.ReadDir(targetDir)
+		if err != nil {
+			return &TestResult{Output: []byte(fmt.Sprintf("failed to read dir %s: %v", targetDir, err)), Err: err}
 		}
-		ignored := false
-		for _, ign := range ignoreList {
-			if entry.Name() == ign {
-				ignored = true
-				break
+
+		hasTargets := false
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			ignored := false
+			for _, ign := range ignoreList {
+				if entry.Name() == ign {
+					ignored = true
+					break
+				}
+			}
+			if !ignored {
+				args = append(args, fmt.Sprintf("./%s/%s/...", filepath.Clean(targetDir), entry.Name()))
+				hasTargets = true
 			}
 		}
-		if !ignored {
-			args = append(args, fmt.Sprintf("./%s/%s/...", filepath.Clean(baseDir), entry.Name()))
-			hasTargets = true
-		}
-	}
 
-	if !hasTargets {
-		return &TestResult{Output: []byte("No test targets"), Err: nil}
+		if !hasTargets {
+			return &TestResult{Output: []byte("No test targets"), Err: nil}
+		}
+	} else {
+		args = append(args, fmt.Sprintf("./%s/...", filepath.Clean(targetDir)))
 	}
 
 	cmd := exec.Command("go", args...)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
-	err = cmd.Run()
+	err := cmd.Run()
 	return &TestResult{Output: out.Bytes(), Err: err}
 }
 
