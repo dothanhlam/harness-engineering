@@ -4,18 +4,20 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/dothanhlam/harness-app/internal/agent"
+	"github.com/dothanhlam/harness-engineering/internal/agent"
 )
 
 // Config holds the full harness pipeline configuration with pluggable agent specs.
 type Config struct {
 	ContextWindow   int             `json:"context_window"`
 	FlashAttention  bool            `json:"flash_attention"`
+	ProjectDir      string          `json:"project_dir"`
 	ForceRegression bool            `json:"force_regression"`
 	BA              agent.AgentSpec `json:"ba"`
 	Dev            agent.AgentSpec `json:"dev"`
-	DevOps         agent.AgentSpec `json:"devops"`
-	QAIgnore       []string        `json:"qa_ignore"`
+	DevOps         agent.AgentSpec   `json:"devops"`
+	QAIgnore       []string          `json:"qa_ignore"`
+	QARules        map[string]string `json:"qa_rules"`
 }
 
 // DefaultConfig returns the built-in default configuration.
@@ -36,6 +38,17 @@ func DefaultConfig() Config {
 			ModelName: "~/ai_models/hermes3_8b.gguf",
 		},
 		QAIgnore: []string{},
+		QARules: map[string]string{
+			"\"os/exec\"":    "invokes forbidden package os/exec",
+			"exec.Command":   "invokes forbidden package os/exec",
+			"rm -rf":         "contains destructive terminal command 'rm -rf'",
+			"os.Remove(":     "contains unauthorized filesystem manipulation",
+			"os.RemoveAll(":  "contains unauthorized filesystem manipulation",
+			"os.Rename(":     "contains unauthorized filesystem manipulation",
+			"password =":     "contains potential hardcoded credentials",
+			"secret =":       "contains potential hardcoded credentials",
+			"aws_access_key": "contains potential hardcoded credentials",
+		},
 	}
 }
 

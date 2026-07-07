@@ -16,7 +16,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 # ── Stage 2: Minimal runtime ─────────────────────────────────────────────────
 FROM ghcr.io/ggerganov/llama.cpp:light
 
-RUN apt-get update && apt-get install -y curl jq bash golang && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y curl jq bash golang nodejs npm && rm -rf /var/lib/apt/lists/*
+RUN npm install -g openwiki
 
 WORKDIR /app
 

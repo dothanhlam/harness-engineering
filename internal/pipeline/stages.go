@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/dothanhlam/harness-app/internal/telemetry"
+	"github.com/dothanhlam/harness-engineering/internal/telemetry"
 )
 
 // Stage represents a pipeline execution stage.

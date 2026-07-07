@@ -5,8 +5,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/dothanhlam/harness-app/internal/agent"
-	"github.com/dothanhlam/harness-app/internal/telemetry"
+	"github.com/dothanhlam/harness-engineering/internal/agent"
+	"github.com/dothanhlam/harness-engineering/internal/telemetry"
 )
 
 // UpdateSystemMemory progressively analyzes architectural correlations and archives features.

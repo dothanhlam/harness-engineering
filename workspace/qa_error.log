@@ -1,0 +1,5 @@
+TEST FAILURE:
+# ./workspace/default_task/...
+pattern ./workspace/default_task/...: lstat ./workspace/default_task/: no such file or directory
+FAIL	./workspace/default_task/... [setup failed]
+FAIL

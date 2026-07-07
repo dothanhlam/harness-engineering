@@ -11,11 +11,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dothanhlam/harness-app/internal/agent"
-	"github.com/dothanhlam/harness-app/internal/config"
-	"github.com/dothanhlam/harness-app/internal/memory"
-	"github.com/dothanhlam/harness-app/internal/qa"
-	"github.com/dothanhlam/harness-app/internal/telemetry"
+	"github.com/dothanhlam/harness-engineering/internal/agent"
+	"github.com/dothanhlam/harness-engineering/internal/config"
+	"github.com/dothanhlam/harness-engineering/internal/memory"
+	"github.com/dothanhlam/harness-engineering/internal/qa"
+	"github.com/dothanhlam/harness-engineering/internal/telemetry"
 )
 
 // EpicPipeline holds the decomposed tasks for an epic.
@@ -187,7 +187,7 @@ func executeParallel(ep EpicPipeline, cfg config.Config, tracker *telemetry.Trac
 		qaWg.Add(1)
 		go func(t SubTask) {
 			defer qaWg.Done()
-			auditErr := qa.AuditGeneratedCode(t.TargetFolder, cfg.QAIgnore)
+			auditErr := qa.AuditGeneratedCode(t.TargetFolder, cfg.QAIgnore, cfg.QARules)
 			qaResultCh <- TaskResult{TaskName: t.Name, Success: auditErr == nil, Error: auditErr}
 		}(task)
 	}

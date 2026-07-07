@@ -1,0 +1,11 @@
+{
+  "\"os/exec\"": "invokes forbidden package os/exec",
+  "aws_access_key": "contains potential hardcoded credentials",
+  "exec.Command": "invokes forbidden package os/exec",
+  "os.Remove(": "contains unauthorized filesystem manipulation",
+  "os.RemoveAll(": "contains unauthorized filesystem manipulation",
+  "os.Rename(": "contains unauthorized filesystem manipulation",
+  "password =": "contains potential hardcoded credentials",
+  "rm -rf": "contains destructive terminal command 'rm -rf'",
+  "secret =": "contains potential hardcoded credentials"
+}

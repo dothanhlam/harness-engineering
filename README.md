@@ -105,7 +105,7 @@ llama-cli -hf bartowski/Qwen2.5-Coder-14B-Instruct-GGUF:Q4_K_M -c 16384 --flash-
 ## 📁 Repository Structure
 
 ```
-harness-app/
+harness-engineering/
 ├── .agents/
 │   └── antigravity_dev_prompt.md  # Autonomous Developer Agent configuration
 ├── internal/                      # Modular Harness Orchestrator core
@@ -129,168 +129,110 @@ harness-app/
 ├── harness_config.json           # Agent and Model configurations
 ├── Dockerfile                    # Multi-stage Go build
 ├── docker-compose.yml            # Harness sidecar
-├── go.mod                        # Module definition (github.com/dothanhlam/harness-app)
+├── go.mod                        # Module definition (github.com/dothanhlam/harness-engineering)
 ├── main.go                       # Slim orchestrator entrypoint
 └── README.md                     # Project documentation (this file)
 ```
 
 ---
 
-## 🛠️ Getting Started & Usage
+## 🛠️ Integration & Usage Guidelines
 
-### Prerequisites
+The Harness Engine is a standalone framework designed to integrate into **any project directory**, whether it's a fresh scaffolding or an existing repository.
 
-| Requirement | Local Dev | Docker |
-|---|:---:|:---:|
-| **Go** 1.26.1+ | ✅ Required | ❌ Not needed |
-| **llama.cpp** (running locally) | ✅ Required | ❌ Not needed |
-| **Docker & Docker Compose** | ❌ Not needed | ✅ Required |
+### Method 1: Git Submodule (Recommended for Monorepos)
+
+If you are managing a large project or monorepo, you can include the framework as a git submodule.
+
+```bash
+cd /path/to/my-project
+
+# Add the framework as a submodule
+git submodule add https://github.com/dothanhlam/harness-engineering.git .harness-framework
+
+# Build the framework
+cd .harness-framework
+go build -o harness .
+cd ..
+
+# Initialize Harness in your project
+./.harness-framework/harness init --project-dir .
+
+# Run the pipeline on your project
+./.harness-framework/harness run --project-dir . --task "Create a secure bcrypt hashing module"
+```
+
+### Method 2: Global Binary (Local Execution)
+
+Clone the framework independently and run the binary globally.
+
+```bash
+# Clone and build globally
+git clone https://github.com/dothanhlam/harness-engineering.git
+cd harness-engineering
+go build -o harness .
+sudo mv harness /usr/local/bin/
+
+# Navigate to your actual project
+cd /path/to/my-project
+
+# Initialize and run
+harness init --project-dir .
+harness run --project-dir . --task "Add a Subtract function to the existing math_utils module"
+```
+
+### Method 3: Docker (No Local Setup)
+
+You can run the framework completely via Docker without installing Go or `llama.cpp`. The `--project-dir` will be mounted inside the container.
+
+```bash
+cd /path/to/my-project
+
+# 1. Clone the framework to build the image (one-time setup)
+git clone https://github.com/dothanhlam/harness-engineering.git .harness-framework
+cd .harness-framework
+docker build -t harness-pipeline .
+cd ..
+
+# 2. Initialize Harness in your project using Docker
+docker run --rm \
+  -v $(pwd):/app/project \
+  harness-pipeline init --project-dir /app/project
+
+# 3. Run the pipeline (Mount your local AI models cache)
+docker run --rm \
+  -v $(pwd):/app/project \
+  -v ~/.cache/huggingface/hub:/root/.cache/huggingface/hub \
+  harness-pipeline run --project-dir /app/project --task "Create a hello world Go program"
+```
+
+> **Note:** The pipeline dynamically detects the project's ecosystem (Go, Node.js `package.json`, Python `pytest.ini` or `requirements.txt`) to run the appropriate QA test commands!
 
 ---
 
-### Step 1: Sandbox Initialization & Skill Provisioning
+### Step-by-Step Breakdown
 
-Harness Engineering features an on-demand, interactive skill installer that allows you to provision expert domain skills from the `antigravity-awesome-skills` catalog into your local workspace (`./.agents/skills`).
+**1. Project Initialization (`harness init`)**
+When you run `init`, the framework scaffolds the following in your target directory:
+- `.harness/rules.json`: Dynamic QA rules and security audit configurations (e.g., banning `rm -rf`).
+- `.agents/`: Autonomous agent instructions and prompts (e.g., instructing the Dev agent to output `SEARCH/REPLACE` blocks).
 
-First, initialize the mandatory sandbox directories (`workspace/`, `memory/`, `.agents/skills/`) and scaffold the baseline configuration if missing:
-```bash
-make init
-```
-
-Next, run the interactive installer to select and install the expert toolkits required for your development task:
-```bash
-make skills
-```
-
-This will open an interactive menu in your terminal:
-```text
-========================================================
-      Harness Engineering — Expert Skill Installer      
-========================================================
-Choose which expert domain skills to provision:
-
-  1) @clickhouse-expert         (cc-skill-clickhouse-io)
-  2) @test-driven-development   (test-driven-development)
-  3) @debugging-strategies       (debugging-strategies)
-  4) @go-clean-architecture     (golang-pro + patterns)
-  5) Install ALL available skills (Advanced/Full setup)
-  6) List currently installed skills
-  7) Remove a specific skill
-  8) Exit / Cancel
-
-========================================================
-❓ Enter choices (comma-separated, e.g. 1,3 or 5): 
-```
-
-To manage your installed skills programmatically:
-```bash
-# List all currently installed skills in the workspace
-make list-skills
-
-# Remove a specific skill from the workspace
-make remove-skill SKILL=<skill-folder-name>
-```
+**2. Running the Pipeline (`harness run`)**
+When running on an existing project, the Developer Agent utilizes a Surgical File Editing technique (Aider-style `<<<< ==== >>>>` blocks). This ensures it safely patches existing code instead of blindly overwriting entire files.
 
 ---
 
-### Option A: Run Locally
-
-Requires Go and llama.cpp installed on your machine:
-
-```bash
-# 1. Models will be automatically managed and cached in ~/.cache/huggingface/hub
-# using the hf:// prefix.
-
-# 2. Build the binary
-make build
-
-# 3. Run with a task
-./harness_bin --task "Create a secure bcrypt hashing module"
-
-# 4. Run an epic concurrently
-./harness_bin --epic "./requirements/auth_epic/" --parallel-epic
-```
-
 ---
 
-### Option B: Run with Docker (Recommended)
+### Running Tests on the Target Project
 
-No local Go or llama.cpp installation needed — everything runs in containers.
+The Harness pipeline automatically executes tests during the `QA_TESTING` phase by dynamically detecting the target project's ecosystem (e.g., `npm run test` for Node.js, `pytest` for Python, `go test` for Go). 
 
-#### Quick Start
-
-```bash
-# Build the Docker images
-make docker-build
-
-# Run a single task (models are auto-pulled on first run)
-make docker-run TASK="Create a hello world Go program"
-
-# Stop everything
-make docker-down
-```
-
-#### Architecture
-
-The Docker setup uses a **single-container architecture** that bundles the `llama.cpp` inference engine alongside the Go orchestrator.
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│  Docker Container                                           │
-│                                                             │
-│  ┌──────────────────┐     Subprocess    ┌────────────────┐  │
-│  │  harness-pipeline│ ──────────────►   │ llama-cli      │  │
-│  │  (Go binary)     │                   │ (LLM Engine)   │  │
-│  └────────┬─────────┘                   └────────┬───────┘  │
-│           │                                      │          │
-└───────────┼──────────────────────────────────────┼──────────┘
-            │ bind mount                           │ bind mount
-            ▼                                      ▼
-   ./workspace/  (host)                   ~/ai_models (host)
-   ./memory/     (host)                   (Model weights)
-```
-
-| Container | Image | Purpose |
-|---|---|---|
-| `harness-pipeline` | Built from `Dockerfile` | Runs the Go orchestrator and native `llama.cpp` execution engine |
-
-#### 📂 Volume Mounts — Accessing Generated Code & Models
-
-The `workspace/`, `memory/`, and your local model directory are **bind-mounted** from your host machine into the container. This means:
-
-- **All code generated by the AI agents inside Docker appears instantly on your host filesystem.**
-- You can open `./workspace/` in your IDE and watch files appear in real-time as the pipeline runs.
-- **You MUST have your `.gguf` models downloaded to your host's `~/ai_models/` directory before running the container.**
-
-```yaml
-# From docker-compose.yml — these lines make it work:
-volumes:
-  - ./workspace:/app/workspace   # ← Generated code lives here on your host
-  - ./memory:/app/memory         # ← Agent memory (DoD, blueprint) on your host
-  - ./harness_config.json:/app/harness_config.json:ro  # ← Config (read-only)
-  - ~/.cache/huggingface/hub:/root/.cache/huggingface/hub:ro # ← Hugging Face model cache mapped into container
-```
-
-> **Tip:** After a pipeline run, browse `./workspace/<task_name>/` on your host to see the generated Go packages, tests, and release notes. The folder name (`<task_name>`) is dynamically determined by the Business Analyst agent based on your raw requirement.
-
-#### All Docker Commands
+To manually run the test suite on your target Go project after generation:
 
 ```bash
-make docker-build   # Build the harness image
-make docker-up      # Start stack in detached mode
-make docker-run TASK="your requirement"  # Run a single task
-make docker-down    # Stop and remove containers
-
-# Useful docker compose commands
-docker compose logs -f              # Follow all output
-```
-
----
-
-### Running the Test Suite
-
-```bash
-go test -v ./workspace/...
+cd /path/to/my-project
+go test -v ./...
 ```
 
 **Example output:**
@@ -299,10 +241,7 @@ go test -v ./workspace/...
 --- PASS: TestHashPassword (0.26s)
 === RUN   TestIsValidEmail
 --- PASS: TestIsValidEmail (0.00s)
-=== RUN   TestHandler_Index
---- PASS: TestHandler_Index (0.00s)
 ...
 PASS
-ok  	github.com/dothanhlam/harness-app/workspace/password	2.734s
-ok  	github.com/dothanhlam/harness-app/workspace/landing_page	0.968s
+ok  	github.com/my-org/my-project/password	2.734s
 ```

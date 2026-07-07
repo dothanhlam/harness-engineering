@@ -9,11 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dothanhlam/harness-app/internal/agent"
-	"github.com/dothanhlam/harness-app/internal/config"
-	"github.com/dothanhlam/harness-app/internal/memory"
-	"github.com/dothanhlam/harness-app/internal/qa"
-	"github.com/dothanhlam/harness-app/internal/telemetry"
+	"github.com/dothanhlam/harness-engineering/internal/agent"
+	"github.com/dothanhlam/harness-engineering/internal/config"
+	"github.com/dothanhlam/harness-engineering/internal/docs"
+	"github.com/dothanhlam/harness-engineering/internal/memory"
+	"github.com/dothanhlam/harness-engineering/internal/qa"
+	"github.com/dothanhlam/harness-engineering/internal/telemetry"
 )
 
 // RunCoreHarnessLoop runs the core Development → QA → HITL → DevOps → Memory loop.
@@ -131,9 +132,9 @@ func RunCoreHarnessLoop(cfg config.Config, tracker *telemetry.Tracker) {
 
 			go func() { 
 				if cfg.ForceRegression {
-					auditCh <- qa.AuditGeneratedCode("workspace", cfg.QAIgnore)
+					auditCh <- qa.AuditGeneratedCode("workspace", cfg.QAIgnore, cfg.QARules)
 				} else {
-					auditCh <- qa.AuditGeneratedCode(targetSubfolder, nil)
+					auditCh <- qa.AuditGeneratedCode(targetSubfolder, nil, cfg.QARules)
 				}
 			}()
 			
@@ -366,6 +367,16 @@ Output ONLY the strict markdown checklist content. Do not include any chat fille
 	}
 
 	// =======================================================
+	// PHASE 5: AUTO-DOCUMENTATION (OPENWIKI)
+	// =======================================================
+	fmt.Println("\n==============================================")
+	fmt.Println("PHASE 5: AUTO-DOCUMENTATION (OPENWIKI)")
+	fmt.Println("==============================================")
+	if err := docs.GenerateDocumentation(cfg.DevOps.ModelName); err != nil {
+		fmt.Printf("⚠️ OpenWiki integration encountered an error: %v\n", err)
+	}
+
+	// =======================================================
 	// FINALIZE: Memory Progression (fully sequential)
 	// =======================================================
 	UpdateState(StageCompact, 0, tracker)
@@ -376,42 +387,96 @@ Output ONLY the strict markdown checklist content. Do not include any chat fille
 	fmt.Println("\n🎯 SPRINT PIPELINE RUN COMPLETE. Check your /workspace folder for final artifacts!")
 }
 
-// parseAndWriteGeneratedFiles extracts file paths and code blocks from the raw LLM output and writes them to the workspace.
+// parseAndWriteGeneratedFiles extracts file paths and code blocks or SEARCH/REPLACE blocks from the raw LLM output and writes them to the workspace.
 func parseAndWriteGeneratedFiles(output string) {
 	lines := strings.Split(output, "\n")
 	var currentFile string
 	var currentContent []string
+	
 	inCodeBlock := false
+	inSearchBlock := false
+	inReplaceBlock := false
+	
+	var searchContent []string
+	var replaceContent []string
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
+		
 		if strings.HasPrefix(trimmed, "### FILE: ") {
 			currentFile = strings.TrimSpace(strings.TrimPrefix(trimmed, "### FILE: "))
 			currentContent = []string{}
+			searchContent = []string{}
+			replaceContent = []string{}
 			inCodeBlock = false
+			inSearchBlock = false
+			inReplaceBlock = false
 			continue
 		}
 		
-		if currentFile != "" && strings.HasPrefix(trimmed, "```") {
+		if currentFile == "" {
+			continue
+		}
+
+		// Backward compatibility: Full file overwrite
+		if strings.HasPrefix(trimmed, "```") && !inSearchBlock && !inReplaceBlock {
 			if !inCodeBlock {
 				inCodeBlock = true
 				continue
 			} else {
 				// End of code block, write file
 				inCodeBlock = false
-				
-				// Make directories
 				dir := filepath.Dir(currentFile)
 				_ = os.MkdirAll(dir, 0755)
 				_ = os.WriteFile(currentFile, []byte(strings.Join(currentContent, "\n")), 0644)
-				
 				fmt.Printf("📝 Wrote generated file: %s\n", currentFile)
 				currentFile = "" // reset
 				continue
 			}
 		}
-		
-		if inCodeBlock {
+
+		// Search/Replace Block Logic
+		if trimmed == "<<<<" {
+			inSearchBlock = true
+			searchContent = []string{}
+			continue
+		}
+		if trimmed == "====" && inSearchBlock {
+			inSearchBlock = false
+			inReplaceBlock = true
+			replaceContent = []string{}
+			continue
+		}
+		if trimmed == ">>>>" && inReplaceBlock {
+			inReplaceBlock = false
+			
+			// Apply the replacement
+			content, err := os.ReadFile(currentFile)
+			if err == nil {
+				oldCode := strings.Join(searchContent, "\n")
+				newCode := strings.Join(replaceContent, "\n")
+				
+				// Optional: trim trailing newlines for safety
+				fileContent := string(content)
+				if strings.Contains(fileContent, oldCode) {
+					updatedContent := strings.Replace(fileContent, oldCode, newCode, 1)
+					_ = os.WriteFile(currentFile, []byte(updatedContent), 0644)
+					fmt.Printf("📝 Applied patch to file: %s\n", currentFile)
+				} else {
+					fmt.Printf("⚠️ Failed to apply patch to %s: search block not found.\n", currentFile)
+				}
+			} else {
+				fmt.Printf("⚠️ Failed to read file for patching: %s\n", currentFile)
+			}
+			continue
+		}
+
+		// Buffer content based on state
+		if inSearchBlock {
+			searchContent = append(searchContent, line)
+		} else if inReplaceBlock {
+			replaceContent = append(replaceContent, line)
+		} else if inCodeBlock {
 			currentContent = append(currentContent, line)
 		}
 	}
