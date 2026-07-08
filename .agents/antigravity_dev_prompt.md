@@ -37,6 +37,6 @@ package feature_name
 
 ## 3. STRUCTURAL INVARIANTS
 
-- All subfolders must link dynamically to the root `/workspace/go.mod` using `module github.com/dothanhlam/harness-app`.
+- All subfolders must link dynamically to the root `/workspace/go.mod` using `module github.com/dothanhlam/harness-engineering/workspace`.
 - Never use `package main` in modular feature directories.
 - Ensure package names are lowercase and match the subfolder name.

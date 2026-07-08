@@ -1,7 +1,6 @@
 package pipeline
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -11,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dothanhlam/harness-engineering/internal/agent"
 	"github.com/dothanhlam/harness-engineering/internal/config"
 	"github.com/dothanhlam/harness-engineering/internal/memory"
 	"github.com/dothanhlam/harness-engineering/internal/qa"
@@ -148,7 +146,7 @@ func executeParallel(ep EpicPipeline, cfg config.Config, tracker *telemetry.Trac
 				_ = os.WriteFile(filepath.Join(isolatedMemDir, "system_blueprint.md"), blueprint, 0644)
 			}
 
-			// Clone dev agent spec and remap --add-dir ./memory to isolated path
+			// Clone dev agent spec and remap --add-dir ./memory to isolated path (CLI agents)
 			devAgent := cfg.Dev.Clone()
 			for j, arg := range devAgent.CmdTemplate {
 				devAgent.CmdTemplate[j] = strings.ReplaceAll(arg, "./memory", "./"+isolatedMemDir)
@@ -160,8 +158,22 @@ func executeParallel(ep EpicPipeline, cfg config.Config, tracker *telemetry.Trac
 				return
 			}
 
-			_, devUsage, err := devAgent.Execute(string(devPrompt))
+			// Local llama.cpp models have no filesystem tools: inject context inline.
+			var finalPrompt string
+			if devAgent.Agent == "llama_cpp" {
+				blueprint, _ := os.ReadFile("memory/system_blueprint.md")
+				finalPrompt = buildLlamaDevPrompt(string(devPrompt), t.Name, dodContent, string(blueprint), "")
+			} else {
+				finalPrompt = string(devPrompt)
+			}
+
+			out, devUsage, err := devAgent.Execute(finalPrompt)
 			tracker.AddTokens(devUsage.PromptTokens, devUsage.EvalTokens)
+
+			// Write out the generated files (llama.cpp emits code as text).
+			if devAgent.Agent == "llama_cpp" {
+				parseAndWriteGeneratedFiles(out, t.TargetFolder)
+			}
 			devResultCh <- TaskResult{TaskName: t.Name, Success: err == nil, Error: err}
 		}(i, task)
 	}
@@ -178,8 +190,8 @@ func executeParallel(ep EpicPipeline, cfg config.Config, tracker *telemetry.Trac
 		}
 	}
 
-	// ── Phase 2: Parallel QA on all outputs ──
-	fmt.Println("\n🛡️ [PARALLEL QA] Running security audit on all modules...")
+	// ── Phase 2: Parallel QA on all outputs (security audit + test suite) ──
+	fmt.Println("\n🛡️ [PARALLEL QA] Running security audit & test suite on all modules...")
 	var qaWg sync.WaitGroup
 	qaResultCh := make(chan TaskResult, len(ep.SubTasks))
 
@@ -187,8 +199,13 @@ func executeParallel(ep EpicPipeline, cfg config.Config, tracker *telemetry.Trac
 		qaWg.Add(1)
 		go func(t SubTask) {
 			defer qaWg.Done()
-			auditErr := qa.AuditGeneratedCode(t.TargetFolder, cfg.QAIgnore, cfg.QARules)
-			qaResultCh <- TaskResult{TaskName: t.Name, Success: auditErr == nil, Error: auditErr}
+			var qaErr error
+			if auditErr := qa.AuditGeneratedCode(t.TargetFolder, cfg.QAIgnore, cfg.QARules); auditErr != nil {
+				qaErr = fmt.Errorf("security audit: %v", auditErr)
+			} else if testResult := qa.RunTests(t.TargetFolder, false, nil); testResult.Err != nil {
+				qaErr = fmt.Errorf("tests failed:\n%s", string(testResult.Output))
+			}
+			qaResultCh <- TaskResult{TaskName: t.Name, Success: qaErr == nil, Error: qaErr}
 		}(task)
 	}
 
@@ -240,47 +257,7 @@ func executeParallel(ep EpicPipeline, cfg config.Config, tracker *telemetry.Trac
 		devopsWg.Add(1)
 		go func(t SubTask) {
 			defer devopsWg.Done()
-			featureFiles, _ := os.ReadDir(t.TargetFolder)
-			var allCode string
-			for _, ff := range featureFiles {
-				if !ff.IsDir() && strings.HasSuffix(ff.Name(), ".go") {
-					content, _ := os.ReadFile(filepath.Join(t.TargetFolder, ff.Name()))
-					allCode += string(content) + "\n"
-				}
-			}
-			if allCode == "" {
-				return
-			}
-
-			sysPrompt := fmt.Sprintf("You are a deployment release manager. Generate a short, bulleted markdown release note based on the provided Go code for the feature '%s'. Keep it brief. Be extremely concise. Return bullet points only. Limit your response to under 150 words. Do not write filler structural prose.", t.Name)
-			fullPrompt := fmt.Sprintf("SYSTEM INSTRUCTIONS:\n%s\n\nUSER INPUT:\n%s", sysPrompt, allCode)
-
-			var releaseNotes string
-			var err error
-			if cfg.DevOps.Agent == "llama_cpp" {
-				ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-				defer cancel()
-				var doUsage agent.TokenUsage
-				releaseNotes, doUsage, err = cfg.DevOps.ExecuteWithContext(ctx, fullPrompt)
-				tracker.AddTokens(doUsage.PromptTokens, doUsage.EvalTokens)
-				if err != nil {
-					fmt.Printf("⚠️ [%s THERMAL THROTTLING] DevOps agent timed out. Gracefully falling back to save CPU cycles...\n", strings.ToUpper(cfg.DevOps.Agent))
-					releaseNotes = "- DevOps auto-generation aborted (thermal fallback).\n- Check commits for details."
-					err = nil
-				}
-			} else {
-				var doUsage agent.TokenUsage
-				releaseNotes, doUsage, err = cfg.DevOps.Execute(fullPrompt)
-				tracker.AddTokens(doUsage.PromptTokens, doUsage.EvalTokens)
-			}
-
-			if err != nil {
-				fmt.Printf("⚠️ DevOps failed for %s: %v\n", t.Name, err)
-				return
-			}
-			notePath := filepath.Join(t.TargetFolder, "RELEASE_NOTES.md")
-			_ = os.WriteFile(notePath, []byte(releaseNotes), 0644)
-			fmt.Printf("📝 Generated %s\n", notePath)
+			generateReleaseNotes(&cfg.DevOps, t.TargetFolder, t.Name, tracker)
 		}(task)
 	}
 	devopsWg.Wait()

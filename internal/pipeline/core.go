@@ -1,7 +1,6 @@
 package pipeline
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"os"
@@ -9,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dothanhlam/harness-engineering/internal/agent"
 	"github.com/dothanhlam/harness-engineering/internal/config"
 	"github.com/dothanhlam/harness-engineering/internal/docs"
 	"github.com/dothanhlam/harness-engineering/internal/memory"
@@ -53,60 +51,16 @@ func RunCoreHarnessLoop(cfg config.Config, tracker *telemetry.Tracker) {
 				log.Fatalf("❌ Missing configuration file: .agents/antigravity_dev_prompt.md")
 			}
 
+			// Parse the feature name from definitions_of_done.md to replace placeholders
+			dod, _ := os.ReadFile("memory/definitions_of_done.md")
+			targetSubfolder, parsedFeatureName := parseDoDTarget(string(dod))
+
 			// Context Injection for local LLMs (they lack filesystem read tools)
 			var finalPrompt string
-			
-			// Parse the feature name from definitions_of_done.md to replace placeholders
-			var parsedFeatureName string
-			var targetSubfolder string
-			dod, errDod := os.ReadFile("memory/definitions_of_done.md")
-			if errDod == nil {
-				for _, line := range strings.Split(string(dod), "\n") {
-					if strings.HasPrefix(line, "- Target Subfolder: ") {
-						targetSubfolder = strings.TrimSpace(strings.TrimPrefix(line, "- Target Subfolder: "))
-						parsedFeatureName = filepath.Base(targetSubfolder)
-					} else if strings.HasPrefix(line, "# TASK: ") && parsedFeatureName == "" {
-						parsedFeatureName = strings.TrimSpace(strings.TrimPrefix(line, "# TASK: "))
-					}
-				}
-			}
-			
-			if parsedFeatureName == "" {
-				parsedFeatureName = "default_task"
-			}
-			if targetSubfolder == "" {
-				targetSubfolder = fmt.Sprintf("workspace/%s", parsedFeatureName)
-			}
-
 			if cfg.Dev.Agent == "llama_cpp" {
-				var sb strings.Builder
-				
-				// Replace "feature_name" placeholder in the prompt template
-				promptStr := string(devPrompt)
-				if parsedFeatureName != "" {
-					promptStr = strings.ReplaceAll(promptStr, "feature_name", parsedFeatureName)
-					promptStr = strings.ReplaceAll(promptStr, "filename", parsedFeatureName)
-				}
-				sb.WriteString(promptStr)
-				
-				if errDod == nil {
-					sb.WriteString("\n\n=== CONTEXT: memory/definitions_of_done.md ===\n")
-					sb.WriteString(string(dod))
-				}
-				
-				blueprint, err := os.ReadFile("memory/system_blueprint.md")
-				if err == nil {
-					sb.WriteString("\n\n=== CONTEXT: memory/system_blueprint.md ===\n")
-					sb.WriteString(string(blueprint))
-				}
-				
-				qaErr, err := os.ReadFile("workspace/qa_error.log")
-				if err == nil {
-					sb.WriteString("\n\n=== CONTEXT: workspace/qa_error.log (Fix these errors!) ===\n")
-					sb.WriteString(string(qaErr))
-				}
-				
-				finalPrompt = sb.String()
+				blueprint, _ := os.ReadFile("memory/system_blueprint.md")
+				qaErr, _ := os.ReadFile("workspace/qa_error.log")
+				finalPrompt = buildLlamaDevPrompt(string(devPrompt), parsedFeatureName, string(dod), string(blueprint), string(qaErr))
 			} else {
 				finalPrompt = string(devPrompt)
 			}
@@ -119,7 +73,7 @@ func RunCoreHarnessLoop(cfg config.Config, tracker *telemetry.Tracker) {
 
 			// Extract and write generated code files if agent is llama_cpp
 			if cfg.Dev.Agent == "llama_cpp" {
-				parseAndWriteGeneratedFiles(outDev)
+				parseAndWriteGeneratedFiles(outDev, targetSubfolder)
 			}
 
 			// ── PHASE 2: QA VERIFICATION (PARALLEL AUDIT + TESTS) ──
@@ -248,123 +202,9 @@ Output ONLY the strict markdown checklist content. Do not include any chat fille
 	UpdateState(StageDevOps, 0, tracker)
 	fmt.Printf("📝 Invoking local %s agent (%s) to construct deployment documentation...\n", cfg.DevOps.Agent, cfg.DevOps.ModelName)
 
-	dodContent, errReadDoD := os.ReadFile("memory/definitions_of_done.md")
-	var targetSubfolder, parsedFeatureName string
-	if errReadDoD == nil {
-		for _, line := range strings.Split(string(dodContent), "\n") {
-			if strings.HasPrefix(line, "- Target Subfolder: ") {
-				targetSubfolder = strings.TrimSpace(strings.TrimPrefix(line, "- Target Subfolder: "))
-				parsedFeatureName = filepath.Base(targetSubfolder)
-			} else if strings.HasPrefix(line, "# TASK: ") && parsedFeatureName == "" {
-				parsedFeatureName = strings.TrimSpace(strings.TrimPrefix(line, "# TASK: "))
-			}
-		}
-	}
-	
-	if parsedFeatureName == "" {
-		parsedFeatureName = "default_task"
-	}
-	if targetSubfolder == "" {
-		targetSubfolder = fmt.Sprintf("workspace/%s", parsedFeatureName)
-	}
-
-	if targetSubfolder != "" {
-		featureFiles, _ := os.ReadDir(targetSubfolder)
-		var allCode string
-		for _, ff := range featureFiles {
-			if !ff.IsDir() && strings.HasSuffix(ff.Name(), ".go") {
-				content, _ := os.ReadFile(fmt.Sprintf("%s/%s", targetSubfolder, ff.Name()))
-				allCode += string(content) + "\n"
-			}
-		}
-
-		if allCode != "" {
-			sysPrompt := fmt.Sprintf("You are a deployment release manager. Generate a short, bulleted markdown release note based on the provided Go code for the feature '%s'. Keep it brief. Be extremely concise. Return bullet points only. Limit your response to under 150 words. Do not write filler structural prose.", parsedFeatureName)
-			fullPrompt := fmt.Sprintf("SYSTEM INSTRUCTIONS:\n%s\n\nUSER INPUT:\n%s", sysPrompt, allCode)
-
-			var releaseNotes string
-			var errDevOps error
-			if cfg.DevOps.Agent == "llama_cpp" {
-				ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-				defer cancel()
-				var doUsage agent.TokenUsage
-				releaseNotes, doUsage, errDevOps = cfg.DevOps.ExecuteWithContext(ctx, fullPrompt)
-				tracker.AddTokens(doUsage.PromptTokens, doUsage.EvalTokens)
-				if errDevOps != nil {
-					fmt.Printf("⚠️ [%s THERMAL THROTTLING] DevOps agent timed out. Gracefully falling back to save CPU cycles...\n", strings.ToUpper(cfg.DevOps.Agent))
-					releaseNotes = "- DevOps auto-generation aborted (thermal fallback).\n- Check commits for details."
-					errDevOps = nil
-				}
-			} else {
-				var doUsage agent.TokenUsage
-				releaseNotes, doUsage, errDevOps = cfg.DevOps.Execute(fullPrompt)
-				tracker.AddTokens(doUsage.PromptTokens, doUsage.EvalTokens)
-			}
-
-			notePath := fmt.Sprintf("%s/RELEASE_NOTES.md", targetSubfolder)
-			if errDevOps != nil {
-				fmt.Printf("⚠️ DevOps Agent communication failed for %s: %v\n", parsedFeatureName, errDevOps)
-			} else {
-				_ = os.WriteFile(notePath, []byte(releaseNotes), 0644)
-				fmt.Printf("📝 Generated %s automatically using local resources.\n", notePath)
-
-			}
-		}
-	} else {
-		// Fallback for legacy single-task mode: iterate over entire workspace
-		entries, errRead := os.ReadDir("workspace")
-		if errRead == nil {
-			for _, entry := range entries {
-				if !entry.IsDir() {
-					continue
-				}
-				feature := entry.Name()
-
-				featureFiles, _ := os.ReadDir(fmt.Sprintf("workspace/%s", feature))
-				var allCode string
-				for _, ff := range featureFiles {
-					if !ff.IsDir() && strings.HasSuffix(ff.Name(), ".go") {
-						content, _ := os.ReadFile(fmt.Sprintf("workspace/%s/%s", feature, ff.Name()))
-						allCode += string(content) + "\n"
-					}
-				}
-
-				if allCode == "" {
-					continue
-				}
-
-				sysPrompt := fmt.Sprintf("You are a deployment release manager. Generate a short, bulleted markdown release note based on the provided Go code for the feature '%s'. Keep it brief. Be extremely concise. Return bullet points only. Limit your response to under 150 words. Do not write filler structural prose.", feature)
-				fullPrompt := fmt.Sprintf("SYSTEM INSTRUCTIONS:\n%s\n\nUSER INPUT:\n%s", sysPrompt, allCode)
-
-				var releaseNotes string
-				var errDevOps error
-				if cfg.DevOps.Agent == "llama_cpp" {
-					ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-					defer cancel()
-					var doUsage agent.TokenUsage
-					releaseNotes, doUsage, errDevOps = cfg.DevOps.ExecuteWithContext(ctx, fullPrompt)
-					tracker.AddTokens(doUsage.PromptTokens, doUsage.EvalTokens)
-					if errDevOps != nil {
-						fmt.Printf("⚠️ [%s THERMAL THROTTLING] DevOps agent timed out. Gracefully falling back to save CPU cycles...\n", strings.ToUpper(cfg.DevOps.Agent))
-						releaseNotes = "- DevOps auto-generation aborted (thermal fallback).\n- Check commits for details."
-						errDevOps = nil
-					}
-				} else {
-					var doUsage agent.TokenUsage
-					releaseNotes, doUsage, errDevOps = cfg.DevOps.Execute(fullPrompt)
-					tracker.AddTokens(doUsage.PromptTokens, doUsage.EvalTokens)
-				}
-
-				notePath := fmt.Sprintf("workspace/%s/RELEASE_NOTES.md", feature)
-				if errDevOps != nil {
-					fmt.Printf("⚠️ DevOps Agent communication failed for %s: %v\n", feature, errDevOps)
-				} else {
-					_ = os.WriteFile(notePath, []byte(releaseNotes), 0644)
-					fmt.Printf("📝 Generated %s automatically using local resources.\n", notePath)
-				}
-			}
-		}
-	}
+	dodContent, _ := os.ReadFile("memory/definitions_of_done.md")
+	targetSubfolder, parsedFeatureName := parseDoDTarget(string(dodContent))
+	generateReleaseNotes(&cfg.DevOps, targetSubfolder, parsedFeatureName, tracker)
 
 	// =======================================================
 	// PHASE 5: AUTO-DOCUMENTATION (OPENWIKI)
@@ -387,33 +227,56 @@ Output ONLY the strict markdown checklist content. Do not include any chat fille
 	fmt.Println("\n🎯 SPRINT PIPELINE RUN COMPLETE. Check your /workspace folder for final artifacts!")
 }
 
+// containPath validates that an LLM-emitted file path resolves to a location
+// strictly inside targetSubfolder. It strips a leading slash (the dev prompt
+// sometimes uses "/workspace/...") and rejects any path that escapes the folder
+// via "..". This is a security boundary: the QA audit only scans targetSubfolder,
+// so files written elsewhere would silently bypass the scan and could clobber
+// files anywhere on disk.
+func containPath(targetSubfolder, raw string) (string, bool) {
+	cleaned := filepath.Clean(strings.TrimPrefix(raw, "/"))
+	base := filepath.Clean(targetSubfolder)
+	rel, err := filepath.Rel(base, cleaned)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) || filepath.IsAbs(rel) {
+		return "", false
+	}
+	return cleaned, true
+}
+
 // parseAndWriteGeneratedFiles extracts file paths and code blocks or SEARCH/REPLACE blocks from the raw LLM output and writes them to the workspace.
-func parseAndWriteGeneratedFiles(output string) {
+// Writes are contained to targetSubfolder; paths that escape it are rejected.
+func parseAndWriteGeneratedFiles(output, targetSubfolder string) {
 	lines := strings.Split(output, "\n")
 	var currentFile string
 	var currentContent []string
-	
+
 	inCodeBlock := false
 	inSearchBlock := false
 	inReplaceBlock := false
-	
+
 	var searchContent []string
 	var replaceContent []string
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		
+
 		if strings.HasPrefix(trimmed, "### FILE: ") {
-			currentFile = strings.TrimSpace(strings.TrimPrefix(trimmed, "### FILE: "))
+			raw := strings.TrimSpace(strings.TrimPrefix(trimmed, "### FILE: "))
 			currentContent = []string{}
 			searchContent = []string{}
 			replaceContent = []string{}
 			inCodeBlock = false
 			inSearchBlock = false
 			inReplaceBlock = false
+			if safe, ok := containPath(targetSubfolder, raw); ok {
+				currentFile = safe
+			} else {
+				currentFile = "" // reject: skips the block until the next ### FILE:
+				fmt.Printf("🛑 Rejected generated file outside target folder %q: %s\n", targetSubfolder, raw)
+			}
 			continue
 		}
-		
+
 		if currentFile == "" {
 			continue
 		}

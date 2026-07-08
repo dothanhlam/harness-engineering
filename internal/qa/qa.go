@@ -60,7 +60,7 @@ func RunTests(targetDir string, forceRegression bool, ignoreList []string) *Test
 		isNode = true
 	}
 	isPython := false
-	if _, err := os.Stat(filepath.Join(targetDir, "pytest.ini")); err == nil || (err != nil && !os.IsNotExist(err)) {
+	if _, err := os.Stat(filepath.Join(targetDir, "pytest.ini")); err == nil {
 		isPython = true
 	} else if _, err := os.Stat(filepath.Join(targetDir, "requirements.txt")); err == nil {
 		isPython = true

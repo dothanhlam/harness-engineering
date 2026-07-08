@@ -7,10 +7,35 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
-	"time"
 )
+
+// llama.cpp prints performance timings to stderr on exit, e.g.:
+//
+//	llama_perf_context_print: prompt eval time =  123.45 ms /   42 tokens (...)
+//	llama_perf_context_print:        eval time = 1234.56 ms /  100 runs   (...)
+//
+// promptEvalRe captures the prompt token count; evalRunsRe captures the
+// generated (eval) token count.
+var (
+	promptEvalRe = regexp.MustCompile(`prompt eval time =.*?/\s*(\d+)\s+tokens`)
+	evalRunsRe   = regexp.MustCompile(`\beval time =.*?/\s*(\d+)\s+runs`)
+)
+
+// parseLlamaTokenUsage extracts prompt/eval token counts from llama.cpp's
+// stderr timing output. Returns a zero-valued TokenUsage if timings are absent.
+func parseLlamaTokenUsage(stderr string) TokenUsage {
+	var usage TokenUsage
+	if m := promptEvalRe.FindStringSubmatch(stderr); m != nil {
+		usage.PromptTokens, _ = strconv.Atoi(m[1])
+	}
+	if m := evalRunsRe.FindStringSubmatch(stderr); m != nil {
+		usage.EvalTokens, _ = strconv.Atoi(m[1])
+	}
+	return usage
+}
 
 // AgentSpec defines a pluggable CLI agent with dynamic command templates and environment injection.
 type AgentSpec struct {
@@ -104,6 +129,11 @@ func (a *AgentSpec) executeViaCLI(ctx context.Context, prompt string) (string, T
 		return "", usage, fmt.Errorf("%s CLI error: %v, stderr: %s", a.Agent, err, stderr.String())
 	}
 
+	// llama.cpp emits token timings to stderr; parse them into telemetry.
+	if a.Agent == "llama_cpp" {
+		usage = parseLlamaTokenUsage(stderr.String())
+	}
+
 	return strings.TrimSpace(out.String()), usage, nil
 }
 
@@ -123,6 +153,3 @@ func (a *AgentSpec) Clone() AgentSpec {
 	}
 	return clone
 }
-
-// Compile-time check: ensure unused imports don't break when only one mode is active.
-var _ = time.Second
