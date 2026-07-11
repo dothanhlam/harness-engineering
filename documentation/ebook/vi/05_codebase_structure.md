@@ -1,15 +1,29 @@
 # Chương 5: Cấu trúc Mã nguồn & Các Module
 
-Để làm việc hiệu quả với repository Kỹ thuật Harness, điều quan trọng là phải hiểu cách tổ chức mã nguồn. Repository được chia thành các thành phần cấu trúc dùng để cung cấp năng lượng cho AI và các gói chức năng mà AI tạo ra.
+Để làm việc hiệu quả với repository Kỹ thuật Harness, điều quan trọng là phải hiểu cách tổ chức mã nguồn. Repository được chia thành bộ điều phối (orchestrator) dạng module dùng để cung cấp năng lượng cho AI và các gói chức năng mà AI tạo ra.
 
-## Các Tệp Cốt lõi
+## Lõi của Orchestrator
 
 ### `main.go`
-Đây là trái tim của orchestrator. Nó quản lý cỗ máy trạng thái (state machine), ủy quyền các tác vụ cho các agent, thực thi các rào chắn bảo mật (`AuditGeneratedCode`), và nắm bắt các dữ liệu từ xa (telemetry).
+Một điểm khởi đầu (entrypoint) gọn nhẹ. Nó phân tích các lệnh con `init` / `run` và các cờ của chúng, tải cấu hình, áp dụng các ghi đè từ CLI, và trao quyền xử lý cho các gói pipeline. Phần việc nặng nhọc nằm trong `internal/`.
 
-Ví dụ, trạng thái của pipeline được theo dõi một cách nghiêm ngặt bằng cách sử dụng struct `WorkflowState` này, nó sẽ được ghi vào tệp `state.json` ở mỗi lần chuyển trạng thái:
+### Các gói `internal/`
+Orchestrator đã được tái cấu trúc từ một tệp nguyên khối (monolithic) duy nhất thành các gói tập trung:
+
+* **`internal/pipeline/`** — các vòng lặp cốt lõi và cỗ máy trạng thái.
+    * `core.go`: vòng lặp tuần tự BA→Dev→QA→HITL→DevOps.
+    * `epic.go`: Trình điều phối Epic (phân rã một thư mục các yêu cầu, chạy các tác vụ con tuần tự hoặc song song).
+    * `stages.go`: các hằng số `Stage` của pipeline, `MaxRetries`, và `WorkflowState` được lưu giữ vào `workspace/state.json`.
+    * `helpers.go`: xây dựng prompt và phân tích tệp được tạo ra.
+* **`internal/agent/`** — bộ chuyển đổi (adapter) agent có thể cắm thêm. Thực thi một binary `llama_cpp` cục bộ hoặc một CLI agent dạng mẫu (ví dụ Claude) và phân tích mức sử dụng token vào telemetry.
+* **`internal/config/`** — tải `harness_config.json`, hợp nhất nó lên trên các mặc định tích hợp sẵn.
+* **`internal/qa/`** — **kiểm toán bảo mật** đồng thời (`AuditGeneratedCode`) và **trình chạy kiểm thử** (tự động phát hiện Go / Node / Python).
+* **`internal/memory/`** — cập nhật và nén `memory/system_blueprint.md`.
+* **`internal/telemetry/`** — trình theo dõi các chỉ số thực thi được bảo vệ bằng mutex.
+
+Trạng thái của pipeline được theo dõi một cách nghiêm ngặt bằng cách sử dụng struct `WorkflowState` (`internal/pipeline/stages.go`), nó sẽ được ghi vào `workspace/state.json` ở mỗi lần chuyển giai đoạn:
 ```go
-// WorkflowState là trạng thái đường ống được lưu giữ, ghi vào workspace/state.json.
+// WorkflowState is the persisted pipeline state written to workspace/state.json.
 type WorkflowState struct {
 	TaskID       string    `json:"task_id"`
 	CurrentStage Stage     `json:"current_stage"`
@@ -18,35 +32,29 @@ type WorkflowState struct {
 }
 ```
 
-Nó cũng bao gồm logic kiểm toán bảo mật nghiêm ngặt của chúng ta để ngăn chặn AI làm bất cứ điều gì có tính chất phá hoại:
+Logic kiểm toán bảo mật ngăn chặn AI làm bất cứ điều gì có tính chất phá hoại nằm trong `internal/qa`, được điều khiển bởi bộ quy tắc có thể cấu hình:
 ```go
-if strings.Contains(code, "rm -rf") {
-	auditErr = fmt.Errorf("tệp %s chứa lệnh terminal phá hoại 'rm -rf'", path)
-	return fmt.Errorf("lỗi kiểm toán")
+// Each rule maps a forbidden substring to the audit failure it triggers.
+if strings.Contains(code, pattern) {
+	return fmt.Errorf("file %s %s", path, reason)
 }
 ```
 
 ### `harness_config.json`
-Tệp cấu hình toàn cục. Nó quyết định việc sử dụng các đặc vụ nào (ví dụ: `gemini`, `agy`, `ollama`), thiết lập số lần tự sửa lỗi tối đa, và xác định các điểm cuối (endpoints) API.
+Tệp cấu hình toàn cục. Nó quyết định việc sử dụng agent và model nào theo từng giai đoạn (mặc định tất cả đều là `llama_cpp`), cửa sổ ngữ cảnh (context window), flash-attention, danh sách `qa_ignore`, và các ghi đè quy tắc QA tùy chọn.
 
 ## Môi trường của AI
 
-* **`.agents/`**: Chứa các hệ thống gợi ý (system prompts) và cấu hình hành vi cho các AI agent của chúng ta. Ví dụ, `antigravity_dev_prompt.md` hướng dẫn Developer agent chính xác về các tiêu chuẩn viết mã của chúng ta.
+* **`.agents/`**: Chứa các hệ thống gợi ý (system prompts) cho các AI agent của chúng ta. Ví dụ, `antigravity_dev_prompt.md` hướng dẫn Developer agent phát ra các khối `SEARCH/REPLACE` chính xác để nó vá mã hiện có thay vì ghi đè lên nó.
 * **`memory/`**: Đây là "bộ não" của AI. Không giống như các kỹ sư con người, các AI agent sẽ mất ngữ cảnh của chúng giữa các lần chạy. Chúng ta lưu giữ bộ nhớ của chúng tại đây:
     * `definitions_of_done.md`: Danh sách kiểm tra kỹ thuật nghiêm ngặt do BA agent tạo ra.
-    * `system_blueprint.md`: Một bản đồ kiến trúc giúp AI hiểu về hệ thống rộng lớn hơn mà nó đang đóng góp vào.
-    * `lessons_learned.md`: Một tài liệu sống, nơi AI ghi lại những lỗi mà nó đã sửa để không lặp lại chúng nữa.
+    * `system_blueprint.md`: Một bản đồ kiến trúc giúp AI hiểu về hệ thống rộng lớn hơn mà nó đang đóng góp vào (được cập nhật và nén bởi `internal/memory`).
+    * `lessons_learned.md`: Một tài liệu sống chứa các hướng dẫn gỡ lỗi và lịch sử vận hành.
 
 ## Không gian Làm việc được Tạo ra (Workspace)
 
-* **`workspace/`**: Đây là không gian thử nghiệm (sandbox) nơi mọi phép thuật xảy ra. Tất cả mã do AI tạo ra đều được đặt ở đây. Hiện tại, AI của chúng ta đã tạo thành công và xác thực một số module có độ bảo mật cao:
-    * `password/`: Một thư viện băm (hashing) bcrypt mạnh mẽ được tối ưu hóa cho các kỹ thuật phân bổ bộ nhớ bằng không (zero-allocation) hiệu suất cao.
-    * `email_validation/`: Một module có các bài kiểm thử đơn vị (unit-tested) nghiêm ngặt dành cho việc xác thực email.
-    * `landing_page/`: Một trang web tiếp thị hoàn chỉnh, độc lập và mang phong cách glassmorphic.
-    * `random/`: Một tiện ích tạo ngẫu nhiên an toàn.
-    * `fibonacci/`: Một trình tạo chuỗi Fibonacci có độ chính xác tùy ý và được tối ưu hóa cao.
-    * `state.json`: Tệp theo dõi lưu giữ giai đoạn thực thi hiện tại của đường ống.
-    * `telemetry.json`: Dữ liệu phân tích (payload) được tạo ra ở cuối mỗi chu kỳ thực thi thành công. Đây là những gì chúng ta theo dõi:
+* **`workspace/`**: Đây là hộp cát (sandbox) nơi mọi mã do AI tạo ra được đặt vào. Mỗi tính năng có một thư mục con sạch sẽ riêng — ví dụ `password/` (băm bcrypt), `email_validation/`, `landing_page/`, `random/`, và `fibonacci/`. Nó cũng chứa `state.json` (giai đoạn pipeline trực tiếp) và `RELEASE_NOTES.md`.
+* **`telemetry.json`** (được ghi vào thư mục gốc của dự án ở cuối mỗi lần chạy thành công):
       ```go
       type Telemetry struct {
           TotalDurationSeconds float64  `json:"total_duration_seconds"`
@@ -58,4 +66,4 @@ Tệp cấu hình toàn cục. Nó quyết định việc sử dụng các đặ
       }
       ```
 
-Bằng cách giữ cho orchestrator (`main.go`) tách biệt hoàn toàn khỏi mã được tạo ra (`workspace/`), chúng ta đảm bảo rằng AI của mình có thể xây dựng phần mềm dạng module, có thể kiểm thử mà không bao giờ phá vỡ chính pipeline cốt lõi.
+Bằng cách giữ cho orchestrator (`main.go` + `internal/`) tách biệt hoàn toàn khỏi mã được tạo ra (`workspace/`), chúng ta đảm bảo rằng AI của mình có thể xây dựng phần mềm dạng module, có thể kiểm thử mà không bao giờ phá vỡ chính pipeline cốt lõi.
