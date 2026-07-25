@@ -45,6 +45,13 @@ type AgentSpec struct {
 	Env            map[string]string `json:"env,omitempty"`
 	ContextWindow  int               `json:"-"`
 	FlashAttention bool              `json:"-"`
+
+	// Sink, when non-nil, receives a copy of the agent's stdout as it streams,
+	// in addition to the terminal. It lets an observer mirror agent output
+	// without taking ownership of it. A Sink must never return an error: it is
+	// attached to an io.MultiWriter, which abandons the whole write on the
+	// first failure.
+	Sink io.Writer `json:"-"`
 }
 
 // TokenUsage holds extracted token metrics (if emitted by the agent).
@@ -122,7 +129,11 @@ func (a *AgentSpec) executeViaCLI(ctx context.Context, prompt string) (string, T
 	var stderr bytes.Buffer
 
 	// Bind directly to os terminal while still capturing output for returns
-	cmd.Stdout = io.MultiWriter(os.Stdout, &out)
+	stdoutWriters := []io.Writer{os.Stdout, &out}
+	if a.Sink != nil {
+		stdoutWriters = append(stdoutWriters, a.Sink)
+	}
+	cmd.Stdout = io.MultiWriter(stdoutWriters...)
 	cmd.Stderr = io.MultiWriter(os.Stderr, &stderr)
 
 	if err := cmd.Run(); err != nil {

@@ -1,5 +1,12 @@
 # Harness Orchestration Engine & Validation Modules (v2026.1)
 
+[![Go](https://img.shields.io/github/go-mod/go-version/dothanhlam/harness-engineering?logo=go&logoColor=white&label=Go)](go.mod)
+[![Version](https://img.shields.io/github/v/tag/dothanhlam/harness-engineering?label=version&color=blue)](https://github.com/dothanhlam/harness-engineering/tags)
+[![Last commit](https://img.shields.io/github/last-commit/dothanhlam/harness-engineering)](https://github.com/dothanhlam/harness-engineering/commits)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Inference](https://img.shields.io/badge/inference-llama.cpp-orange)](https://github.com/ggml-org/llama.cpp)
+[![Docker](https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white)](Dockerfile)
+
 Welcome to the **Harness Orchestration System**, a robust, state-aware automation pipeline and high-performance validation engine engineered for Go ecosystems. This project integrates autonomous AI agents, automated quality assurance workflows, and local LLM orchestration to streamline development from initial analysis through deployment delivery.
 
 ---
@@ -53,18 +60,22 @@ A modular approach containing highly secure and robust validation components:
 
 You can switch the agents, models, and endpoints used in each phase dynamically using `harness_config.json` at the root of the project, or via CLI flags which override the defaults:
 
+All agent/model flags default to `""`, meaning "use whatever `harness_config.json` specifies". Pass one only to override the config file for a single run.
+
 | Flag | Default Value | Description |
 |---|---|---|
+| `-project-dir` | `"."` | Target project directory the pipeline operates on |
 | `-task` | `""` | Raw requirement string. Triggers Phase 0 Business Analyst to update `definitions_of_done.md` |
 | `-target` | `""` | Explicit target subfolder to output generated code (e.g. `workspace/custom_folder`) |
 | `-epic` | `""` | Path to a directory containing epic requirements. Triggers the Epic Orchestrator. |
 | `-parallel-epic` | `false` | Run epic sub-tasks concurrently with isolated memory workspaces. |
-| `-ba-agent` | `"llama_cpp"` | Binary/CLI name used for Phase 0 Business Analyst |
-| `-ba-model` | `"hf://NousResearch/Hermes-3-Llama-3.1-8B-GGUF:Q4_K_M"` | Model path for the Phase 0 Business Analyst agent |
-| `-dev-agent` | `"llama_cpp"` | Binary/CLI name used for Phase 1 Developer Coding |
-| `-dev-model` | `"hf://bartowski/Qwen2.5-Coder-14B-Instruct-GGUF:Q4_K_M"` | Model path for the Dev agent |
-| `-devops-agent`| `"llama_cpp"`| Binary/CLI name used for Phase 3 DevOps documentation |
-| `-devops-model`| `"hf://NousResearch/Hermes-3-Llama-3.1-8B-GGUF:Q4_K_M"`| Model path to execute for Phase 3 DevOps documentation |
+| `-force-regression` | `false` | Run QA across the whole workspace instead of only the new subfolder |
+| `-ba-agent` | `""` (config) | Binary/CLI name used for Phase 0 Business Analyst |
+| `-ba-model` | `""` (config) | Model path for the Phase 0 Business Analyst agent |
+| `-dev-agent` | `""` (config) | Binary/CLI name used for Phase 1 Developer Coding |
+| `-dev-model` | `""` (config) | Model path for the Dev agent |
+| `-devops-agent`| `""` (config) | Binary/CLI name used for Phase 3 DevOps documentation |
+| `-devops-model`| `""` (config) | Model path to execute for Phase 3 DevOps documentation |
 
 **Example usages:**
 ```bash
@@ -82,7 +93,7 @@ go run main.go -dev-agent claude -dev-model claude-sonnet-4-20250514
 ```
 
 **Engine Migration: Ollama to llama.cpp**
-The system has migrated its core execution engine from Ollama to the native `llama.cpp` flat binary (`llama-cli`) for local LLM inference (while retaining HTTP fallback for Docker). This provides zero-overhead execution and enables direct low-level parameter tuning.
+The system has migrated its core execution engine from Ollama to the native `llama.cpp` flat binary (`llama-completion`) for local LLM inference (while retaining HTTP fallback for Docker). This provides zero-overhead execution and enables direct low-level parameter tuning.
 
 **Installing New Models for llama.cpp:**
 llama.cpp natively supports downloading and caching models from the Hugging Face Hub using the `hf://` prefix. Models will be stored in `~/.cache/huggingface/hub`.
@@ -90,15 +101,31 @@ llama.cpp natively supports downloading and caching models from the Hugging Face
    ```json
    "dev": {
      "agent": "llama_cpp",
-     "model_name": "hf://bartowski/Qwen2.5-Coder-14B-Instruct-GGUF:Q4_K_M"
+     "model_name": "hf://bartowski/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M"
    }
    ```
+   A `model_name` without the `hf://` prefix is treated as a local filesystem path, and a leading `~/` is expanded.
 
 **Developer Agent Invocation (Local CLI):**
 ```bash
 # Local (CLI subprocess via llama.cpp)
-llama-cli -hf bartowski/Qwen2.5-Coder-14B-Instruct-GGUF:Q4_K_M -c 16384 --flash-attn -p "$DEV_PROMPT"
+llama-completion -hf bartowski/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M -c 16384 --flash-attn on --no-display-prompt -p "$DEV_PROMPT"
 ```
+
+### 🧠 Sizing the Dev Model to Your Host
+
+Local inference is **memory-bound, not CPU-bound**. A model that does not fit does not fail cleanly — it thrashes, taking the host down with it. Budget roughly `weights + KV cache`, where the KV cache scales linearly with `context_window`:
+
+| Dev model | Weights | KV @ 16k ctx | Total | Minimum host RAM |
+|---|---|---|---|---|
+| Qwen2.5-Coder-7B Q4_K_M *(default)* | ~4.7 GB | ~0.9 GB | ~6 GB | 16 GB |
+| Qwen2.5-Coder-14B Q4_K_M | ~8.4 GB | ~3.0 GB | ~12 GB | 32 GB |
+
+On Apple Silicon the practical ceiling is the GPU wired limit, which defaults to roughly 2/3 of physical RAM (~10.6 GB on a 16 GB machine) — not total RAM. Exceeding it will hang the machine, not just the run. Halving `context_window` roughly halves the KV cache if you need to fit a larger model.
+
+Two guardrails exist for when this goes wrong anyway:
+*   **Dev agent timeout** (`internal/pipeline/stages.go`): a llama.cpp dev invocation is capped at 10 minutes, so a wedged model load surfaces as an actionable error instead of an indefinite hang.
+*   **Epic memory guard** (`internal/pipeline/epic.go`): in `-parallel-epic` mode, local dev agents are serialized to one at a time — each concurrent agent would otherwise load its own full copy of the weights. CLI agents (Claude et al.) are network-bound and still fan out freely.
 
 ---
 
@@ -111,7 +138,10 @@ harness-engineering/
 ├── internal/                      # Modular Harness Orchestrator core
 │   ├── agent/                     # Pluggable CLI/HTTP agent adapter
 │   ├── config/                    # JSON Configuration loader
+│   ├── docs/                      # OpenWiki auto-documentation generator
+│   ├── events/                    # JSONL event bus, tailer & run records
 │   ├── memory/                    # System blueprint & AI compaction logic
+│   ├── monitor/                   # Terminal & browser dashboards over the event stream
 │   ├── pipeline/                  # Core loops (epic, sequential, parallel)
 │   ├── qa/                        # Concurrent security audit & test runner
 │   └── telemetry/                 # Mutex-protected execution metrics
@@ -125,12 +155,14 @@ harness-engineering/
 │   ├── landing_page/             # Modular package: Landing Page
 │   ├── password/                 # Modular package: Bcrypt Hashing
 │   ├── random/                   # Modular package: Random Generation
+│   ├── events.jsonl              # Append-only run event stream (truncated per run)
 │   └── state.json                # JSON active pipeline stage tracker
 ├── harness_config.json           # Agent and Model configurations
 ├── Dockerfile                    # Multi-stage Go build
 ├── docker-compose.yml            # Harness sidecar
 ├── go.mod                        # Module definition (github.com/dothanhlam/harness-engineering)
 ├── main.go                       # Slim orchestrator entrypoint
+├── LICENSE                       # MIT License
 └── README.md                     # Project documentation (this file)
 ```
 
@@ -210,6 +242,38 @@ docker run --rm \
 
 ---
 
+## 👁️ Monitoring a Run (`harness monitor`)
+
+A run is headless and owns stdin for the HITL gate, so monitoring is a **separate process** that tails the append-only event stream at `workspace/events.jsonl`. Start it before, during, or after a run — a finished log simply replays.
+
+```bash
+# Terminal 1: start the run
+harness run --project-dir . --task "Create a secure bcrypt hashing module"
+
+# Terminal 2: follow it live
+harness monitor --project-dir .
+
+# Or serve a browser dashboard instead (localhost only)
+harness monitor --project-dir . --web --port 7777
+
+# Replay a finished run and exit, without agent output noise
+harness monitor --project-dir . --once --no-output
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `-project-dir` | `"."` | Project directory whose run to monitor |
+| `-path` | `""` | Event log path (defaults to `<project-dir>/workspace/events.jsonl`) |
+| `-once` | `false` | Replay the current log and exit instead of following live |
+| `-no-output` | `false` | Hide mirrored agent output for a high-level stage view |
+| `-color` | `"auto"` | Colorize output: `auto`\|`always`\|`never` |
+| `-web` | `false` | Serve a browser dashboard instead of tailing the terminal |
+| `-port` | `7777` | Port for `--web` (bound to localhost only) |
+
+Monitoring is strictly non-fatal: if the event log cannot be opened the run continues without it, and a monitor process can never take the pipeline down.
+
+---
+
 ### Step-by-Step Breakdown
 
 **1. Project Initialization (`harness init`)**
@@ -245,3 +309,9 @@ go test -v ./...
 PASS
 ok  	github.com/my-org/my-project/password	2.734s
 ```
+
+---
+
+## 📄 License
+
+Released under the [MIT License](LICENSE). Copyright (c) 2026 Do Thanh Lam.

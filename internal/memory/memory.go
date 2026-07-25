@@ -6,11 +6,15 @@ import (
 	"time"
 
 	"github.com/dothanhlam/harness-engineering/internal/agent"
+	"github.com/dothanhlam/harness-engineering/internal/events"
 	"github.com/dothanhlam/harness-engineering/internal/telemetry"
 )
 
 // UpdateSystemMemory progressively analyzes architectural correlations and archives features.
-func UpdateSystemMemory(devopsAgent *agent.AgentSpec, tracker *telemetry.Tracker) {
+// task attributes emitted events to a sub-task, and is empty when the memory
+// phase is run-scoped rather than tied to one feature (as in a parallel epic).
+// bus may be nil, in which case no events are emitted.
+func UpdateSystemMemory(devopsAgent *agent.AgentSpec, tracker *telemetry.Tracker, bus *events.Bus, task string) {
 	fmt.Println("🧠 [PROGRESSIVE MEMORY] Analyzing modular architectural correlations...")
 	oldBlueprint, _ := os.ReadFile("memory/system_blueprint.md")
 	currentDoD, _ := os.ReadFile("memory/definitions_of_done.md")
@@ -20,7 +24,7 @@ Identify structural dependencies, package reusability, or architectural correlat
 
 	userPrompt := fmt.Sprintf("=== REQS ===\n%s\n=== BLUEPRINT ===\n%s", string(currentDoD), string(oldBlueprint))
 	fullPrompt := fmt.Sprintf("SYSTEM INSTRUCTIONS:\n%s\n\nUSER INPUT:\n%s", sysPrompt, userPrompt)
-	correlations, tu, err := devopsAgent.Execute(fullPrompt)
+	correlations, tu, err := events.Run(bus, task, events.RoleDevOps, devopsAgent, fullPrompt)
 	tracker.AddTokens(tu.PromptTokens, tu.EvalTokens)
 	if err == nil {
 		newContent := fmt.Sprintf("%s\n\n## [ARCHIVED FEATURE - %s]\n%s", string(oldBlueprint), time.Now().Format("2006-01-02 15:04"), correlations)
@@ -30,7 +34,9 @@ Identify structural dependencies, package reusability, or architectural correlat
 }
 
 // CompactSystemMemory uses AI to optimize the system_blueprint.md if it grows too large.
-func CompactSystemMemory(devopsAgent *agent.AgentSpec, tracker *telemetry.Tracker) {
+// task attributes emitted events to a sub-task; see UpdateSystemMemory.
+// bus may be nil, in which case no events are emitted.
+func CompactSystemMemory(devopsAgent *agent.AgentSpec, tracker *telemetry.Tracker, bus *events.Bus, task string) {
 	blueprintPath := "memory/system_blueprint.md"
 	data, err := os.ReadFile(blueprintPath)
 	if err != nil || len(data) < 3000 {
@@ -44,7 +50,7 @@ Keep the latest 2 features fully intact, but summarize all previous ones into ar
 Be extremely concise. Return bullet points only. Limit your response to under 150 words. Do not write filler structural prose.`
 
 	fullPrompt := fmt.Sprintf("SYSTEM INSTRUCTIONS:\n%s\n\nUSER INPUT:\n%s", sysPrompt, string(data))
-	compacted, tu, err := devopsAgent.Execute(fullPrompt)
+	compacted, tu, err := events.Run(bus, task, events.RoleDevOps, devopsAgent, fullPrompt)
 	tracker.AddTokens(tu.PromptTokens, tu.EvalTokens)
 	if err == nil {
 		_ = os.WriteFile(blueprintPath, []byte(compacted), 0644)

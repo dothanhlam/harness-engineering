@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/dothanhlam/harness-engineering/internal/agent"
+	"github.com/dothanhlam/harness-engineering/internal/events"
 	"github.com/dothanhlam/harness-engineering/internal/telemetry"
 )
 
@@ -33,10 +34,29 @@ func parseDoDTarget(dod string) (targetSubfolder, featureName string) {
 	return targetSubfolder, featureName
 }
 
+// FeatureNameFromDoD reports the feature name a definitions_of_done.md body
+// declares, for callers outside this package that need to label a run before
+// the loop starts.
+func FeatureNameFromDoD(dod string) string {
+	_, featureName := parseDoDTarget(dod)
+	return featureName
+}
+
+// maxInjectedContext bounds each context block injected into a llama.cpp dev
+// prompt. Two hard limits sit downstream: the prompt is passed as an argv
+// element (macOS ARG_MAX is 1MiB, and exec fails outright above it), and the
+// model's own context window is ~64KiB of text at 16k tokens — so text beyond
+// this cap cannot be read even when it is delivered. A verbose `go test`
+// regression dump alone exceeds both. The head of a compiler or test error is
+// what a model actually needs to self-heal; workspace/qa_error.log keeps the
+// full text on disk for a human.
+const maxInjectedContext = 16 << 10
+
 // buildLlamaDevPrompt assembles the full prompt for a local llama.cpp dev agent.
 // Local models have no filesystem tools, so the DoD, blueprint, and any QA error
 // log must be injected inline. The "feature_name"/"filename" placeholders in the
-// prompt template are substituted with the parsed feature name.
+// prompt template are substituted with the parsed feature name. Each injected
+// block is capped at maxInjectedContext bytes.
 func buildLlamaDevPrompt(template, featureName, dod, blueprint, qaLog string) string {
 	var sb strings.Builder
 	if featureName != "" {
@@ -46,15 +66,15 @@ func buildLlamaDevPrompt(template, featureName, dod, blueprint, qaLog string) st
 	sb.WriteString(template)
 	if dod != "" {
 		sb.WriteString("\n\n=== CONTEXT: memory/definitions_of_done.md ===\n")
-		sb.WriteString(dod)
+		sb.WriteString(events.TruncateText(dod, maxInjectedContext))
 	}
 	if blueprint != "" {
 		sb.WriteString("\n\n=== CONTEXT: memory/system_blueprint.md ===\n")
-		sb.WriteString(blueprint)
+		sb.WriteString(events.TruncateText(blueprint, maxInjectedContext))
 	}
 	if qaLog != "" {
 		sb.WriteString("\n\n=== CONTEXT: workspace/qa_error.log (Fix these errors!) ===\n")
-		sb.WriteString(qaLog)
+		sb.WriteString(events.TruncateText(qaLog, maxInjectedContext))
 	}
 	return sb.String()
 }
@@ -84,7 +104,7 @@ func readGoSources(targetFolder string) string {
 // RELEASE_NOTES.md using the DevOps agent. llama.cpp runs are bounded by a
 // timeout with a graceful fallback so a slow local model never blocks delivery.
 // It is a no-op when the folder has no Go sources.
-func generateReleaseNotes(devops *agent.AgentSpec, targetFolder, featureName string, tracker *telemetry.Tracker) {
+func generateReleaseNotes(devops *agent.AgentSpec, targetFolder, featureName string, tracker *telemetry.Tracker, bus *events.Bus) {
 	allCode := readGoSources(targetFolder)
 	if allCode == "" {
 		return
@@ -99,7 +119,7 @@ func generateReleaseNotes(devops *agent.AgentSpec, targetFolder, featureName str
 	if devops.Agent == "llama_cpp" {
 		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 		defer cancel()
-		releaseNotes, usage, err = devops.ExecuteWithContext(ctx, fullPrompt)
+		releaseNotes, usage, err = events.RunWithContext(ctx, bus, featureName, events.RoleDevOps, devops, fullPrompt)
 		tracker.AddTokens(usage.PromptTokens, usage.EvalTokens)
 		if err != nil {
 			fmt.Printf("⚠️ [%s THERMAL THROTTLING] DevOps agent timed out. Gracefully falling back to save CPU cycles...\n", strings.ToUpper(devops.Agent))
@@ -107,7 +127,7 @@ func generateReleaseNotes(devops *agent.AgentSpec, targetFolder, featureName str
 			err = nil
 		}
 	} else {
-		releaseNotes, usage, err = devops.Execute(fullPrompt)
+		releaseNotes, usage, err = events.Run(bus, featureName, events.RoleDevOps, devops, fullPrompt)
 		tracker.AddTokens(usage.PromptTokens, usage.EvalTokens)
 	}
 

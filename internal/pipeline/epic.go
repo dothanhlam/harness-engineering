@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -10,7 +11,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dothanhlam/harness-engineering/internal/agent"
 	"github.com/dothanhlam/harness-engineering/internal/config"
+	"github.com/dothanhlam/harness-engineering/internal/events"
 	"github.com/dothanhlam/harness-engineering/internal/memory"
 	"github.com/dothanhlam/harness-engineering/internal/qa"
 	"github.com/dothanhlam/harness-engineering/internal/telemetry"
@@ -38,7 +41,13 @@ type TaskResult struct {
 
 // ExecuteBigEpic reads a directory of requirements, decomposes it into tasks, and orchestrates execution.
 // When parallel=true, sub-tasks run concurrently with isolated memory directories.
-func ExecuteBigEpic(epicFolderPath string, cfg config.Config, tracker *telemetry.Tracker, parallel bool) {
+// bus may be nil, in which case no events are emitted.
+//
+// It returns the names of sub-tasks that failed. Only the parallel path can
+// return a non-empty slice: it reports failures and carries on, whereas the
+// sequential path aborts the process on the first failure. Callers must treat a
+// non-empty result as a failed run.
+func ExecuteBigEpic(epicFolderPath string, cfg config.Config, tracker *telemetry.Tracker, parallel bool, bus *events.Bus) []string {
 	fmt.Printf("📦 [EPIC ORCHESTRATOR] Scanning epic requirements directory: %s\n", epicFolderPath)
 
 	var hugeContext strings.Builder
@@ -62,9 +71,10 @@ Output strictly a JSON array matching this format:
 
 	fmt.Println("🕵️ PM Agent is decomposing the epic into sub-sprints...")
 	fullPrompt := fmt.Sprintf("SYSTEM INSTRUCTIONS:\n%s\n\nUSER INPUT:\n%s", sysPrompt, hugeContext.String())
-	jsonPlan, doUsage, err := cfg.DevOps.Execute(fullPrompt)
+	jsonPlan, doUsage, err := events.Run(bus, "", events.RoleDevOps, &cfg.DevOps, fullPrompt)
 	tracker.AddTokens(doUsage.PromptTokens, doUsage.EvalTokens)
 	if err != nil {
+		events.EmitRunFinished(bus, "", tracker, false, fmt.Sprintf("epic decomposition failed: %v", err))
 		log.Fatalf("❌ Epic decomposition failed: %v", err)
 	}
 
@@ -79,20 +89,28 @@ Output strictly a JSON array matching this format:
 	}
 
 	if err := json.Unmarshal([]byte(jsonPlan), &epicPipeline); err != nil {
+		events.EmitRunFinished(bus, "", tracker, false, fmt.Sprintf("epic JSON decomposition unparseable: %v", err))
 		log.Fatalf("❌ Failed to parse epic JSON decomposition: %v\nRaw Output:\n%s", err, jsonPlan)
 	}
 
+	var failed []string
 	if parallel {
-		executeParallel(epicPipeline, cfg, tracker)
+		failed = executeParallel(epicPipeline, cfg, tracker, bus)
 	} else {
-		executeSequential(epicPipeline, cfg, tracker)
+		executeSequential(epicPipeline, cfg, tracker, bus)
+	}
+
+	if len(failed) > 0 {
+		fmt.Printf("\n⚠️ [EPIC COMPLETED WITH FAILURES] %d module(s) failed: %s\n", len(failed), strings.Join(failed, ", "))
+		return failed
 	}
 
 	fmt.Println("\n🏆 [EPIC COMPLETED] All files in the epic directory have been successfully implemented into modular packages!")
+	return nil
 }
 
 // executeSequential runs each sub-task one at a time through the full core loop.
-func executeSequential(ep EpicPipeline, cfg config.Config, tracker *telemetry.Tracker) {
+func executeSequential(ep EpicPipeline, cfg config.Config, tracker *telemetry.Tracker, bus *events.Bus) {
 	for i, task := range ep.SubTasks {
 		fmt.Printf("\n🎬 [SPRINT %d/%d] Beginning implementation of Module: %s\n", i+1, len(ep.SubTasks), task.Name)
 
@@ -100,7 +118,7 @@ func executeSequential(ep EpicPipeline, cfg config.Config, tracker *telemetry.Tr
 			task.Name, task.TargetFolder, task.TicketID, task.PromptSpecs)
 		_ = os.WriteFile("memory/definitions_of_done.md", []byte(dodContent), 0644)
 
-		RunCoreHarnessLoop(cfg, tracker)
+		RunCoreHarnessLoop(cfg, tracker, bus)
 	}
 }
 
@@ -118,12 +136,28 @@ func executeSequential(ep EpicPipeline, cfg config.Config, tracker *telemetry.Tr
 //	Phase 3 (blocking): Single HITL gate for all tasks
 //	Phase 4 (parallel): DevOps release notes generation
 //	Phase 5 (sequential): Memory progression
-func executeParallel(ep EpicPipeline, cfg config.Config, tracker *telemetry.Tracker) {
+// It returns the names of every sub-task that failed dev or QA.
+func executeParallel(ep EpicPipeline, cfg config.Config, tracker *telemetry.Tracker, bus *events.Bus) []string {
 	fmt.Printf("⚡ [PARALLEL MODE] Launching %d sub-tasks concurrently...\n", len(ep.SubTasks))
 
 	// ── Phase 1: Parallel Dev Agent execution with isolated memory ──
 	var devWg sync.WaitGroup
 	devResultCh := make(chan TaskResult, len(ep.SubTasks))
+
+	// A local llama.cpp model is memory-bound, not CPU-bound: each concurrent
+	// agent loads its own full copy of the weights, so N sub-tasks means N times
+	// the resident set and a host that swaps itself to death. Serialize the model
+	// while leaving each task's setup and file writing concurrent. CLI agents
+	// (Claude et al.) are network-bound and still fan out freely.
+	devSlots := len(ep.SubTasks)
+	if cfg.Dev.Agent == "llama_cpp" {
+		devSlots = 1
+		fmt.Println("🧠 [MEMORY GUARD] Local model detected — dev agents run one at a time.")
+	}
+	if devSlots < 1 {
+		devSlots = 1
+	}
+	devSem := make(chan struct{}, devSlots)
 
 	for i, task := range ep.SubTasks {
 		devWg.Add(1)
@@ -152,6 +186,10 @@ func executeParallel(ep EpicPipeline, cfg config.Config, tracker *telemetry.Trac
 				devAgent.CmdTemplate[j] = strings.ReplaceAll(arg, "./memory", "./"+isolatedMemDir)
 			}
 
+			// Bus-only: UpdateState also writes workspace/state.json, and these
+			// goroutines run concurrently — they would race on that file.
+			emitStage(bus, StageDev, t.Name, 0)
+
 			devPrompt, err := os.ReadFile(".agents/antigravity_dev_prompt.md")
 			if err != nil {
 				devResultCh <- TaskResult{TaskName: t.Name, Success: false, Error: fmt.Errorf("missing dev prompt: %v", err)}
@@ -167,12 +205,26 @@ func executeParallel(ep EpicPipeline, cfg config.Config, tracker *telemetry.Trac
 				finalPrompt = string(devPrompt)
 			}
 
-			out, devUsage, err := devAgent.Execute(finalPrompt)
+			// Hold a slot only for the model invocation itself.
+			devSem <- struct{}{}
+			var out string
+			var devUsage agent.TokenUsage
+			if devAgent.Agent == "llama_cpp" {
+				ctx, cancel := context.WithTimeout(context.Background(), devTimeout)
+				out, devUsage, err = events.RunWithContext(ctx, bus, t.Name, events.RoleDev, &devAgent, finalPrompt)
+				if ctx.Err() == context.DeadlineExceeded {
+					err = fmt.Errorf("dev agent exceeded %s — the model may not fit in memory; try a smaller model or a lower context_window", devTimeout)
+				}
+				cancel()
+			} else {
+				out, devUsage, err = events.Run(bus, t.Name, events.RoleDev, &devAgent, finalPrompt)
+			}
+			<-devSem
 			tracker.AddTokens(devUsage.PromptTokens, devUsage.EvalTokens)
 
 			// Write out the generated files (llama.cpp emits code as text).
 			if devAgent.Agent == "llama_cpp" {
-				parseAndWriteGeneratedFiles(out, t.TargetFolder)
+				parseAndWriteGeneratedFiles(out, t.TargetFolder, t.Name, bus)
 			}
 			devResultCh <- TaskResult{TaskName: t.Name, Success: err == nil, Error: err}
 		}(i, task)
@@ -199,12 +251,20 @@ func executeParallel(ep EpicPipeline, cfg config.Config, tracker *telemetry.Trac
 		qaWg.Add(1)
 		go func(t SubTask) {
 			defer qaWg.Done()
+			emitStage(bus, StageQA, t.Name, 0)
+
 			var qaErr error
+			result := events.QAResult{Target: t.TargetFolder, Attempt: 1, MaxRetries: 1}
 			if auditErr := qa.AuditGeneratedCode(t.TargetFolder, cfg.QAIgnore, cfg.QARules); auditErr != nil {
 				qaErr = fmt.Errorf("security audit: %v", auditErr)
+				result.AuditError = events.TruncateText(auditErr.Error(), events.MaxErrorText)
 			} else if testResult := qa.RunTests(t.TargetFolder, false, nil); testResult.Err != nil {
 				qaErr = fmt.Errorf("tests failed:\n%s", string(testResult.Output))
+				result.TestError = events.TruncateText(string(testResult.Output), events.MaxErrorText)
 			}
+			result.Passed = qaErr == nil
+			bus.Emit(events.KindQAResult, t.Name, result)
+
 			qaResultCh <- TaskResult{TaskName: t.Name, Success: qaErr == nil, Error: qaErr}
 		}(task)
 	}
@@ -226,8 +286,9 @@ func executeParallel(ep EpicPipeline, cfg config.Config, tracker *telemetry.Trac
 		fmt.Printf("\n⚠️ [PARALLEL SUMMARY] Dev failures: %v, QA failures: %v\n", devFailed, qaFailed)
 	}
 
-	UpdateState(StageHITL, 0, tracker)
-	fmt.Print("🚧 [HITL GATE] Parallel epic complete. Do you APPROVE all modules? (y/n) [Auto-yes in 30s]: ")
+	UpdateState(StageHITL, "", 0, tracker, bus)
+	bus.Emit(events.KindHITLPrompt, "", events.HITLPrompt{TimeoutSeconds: int(hitlTimeout / time.Second)})
+	fmt.Printf("🚧 [HITL GATE] Parallel epic complete. Do you APPROVE all modules? (y/n) [Auto-yes in %s]: ", hitlTimeout)
 
 	inputChan := make(chan string)
 	go func() {
@@ -237,16 +298,21 @@ func executeParallel(ep EpicPipeline, cfg config.Config, tracker *telemetry.Trac
 	}()
 
 	var finalInput string
+	auto := false
 	select {
 	case finalInput = <-inputChan:
-	case <-time.After(30 * time.Second):
+	case <-time.After(hitlTimeout):
 		fmt.Println("\n⏳ Timeout reached. Auto-approving (y).")
 		finalInput = "y"
+		auto = true
 	}
 
 	finalInput = strings.ToLower(strings.TrimSpace(finalInput))
-	if finalInput != "y" && finalInput != "" {
+	approved := finalInput == "y" || finalInput == ""
+	bus.Emit(events.KindHITLResolved, "", events.HITLResolved{Approved: approved, Auto: auto})
+	if !approved {
 		fmt.Println("🛑 Disapproved! Terminating pipeline.")
+		events.EmitRunFinished(bus, "", tracker, false, "rejected at HITL gate")
 		os.Exit(1)
 	}
 
@@ -257,17 +323,30 @@ func executeParallel(ep EpicPipeline, cfg config.Config, tracker *telemetry.Trac
 		devopsWg.Add(1)
 		go func(t SubTask) {
 			defer devopsWg.Done()
-			generateReleaseNotes(&cfg.DevOps, t.TargetFolder, t.Name, tracker)
+			emitStage(bus, StageDevOps, t.Name, 0)
+			generateReleaseNotes(&cfg.DevOps, t.TargetFolder, t.Name, tracker, bus)
 		}(task)
 	}
 	devopsWg.Wait()
 
 	// ── Phase 5: Sequential Memory Progression ──
-	UpdateState(StageCompact, 0, tracker)
-	memory.UpdateSystemMemory(&cfg.DevOps, tracker)
-	memory.CompactSystemMemory(&cfg.DevOps, tracker)
+	// Run-scoped, not per-task: this folds every module into one blueprint.
+	UpdateState(StageCompact, "", 0, tracker, bus)
+	memory.UpdateSystemMemory(&cfg.DevOps, tracker, bus, "")
+	memory.CompactSystemMemory(&cfg.DevOps, tracker, bus, "")
 
-	UpdateState(StageDone, 0, tracker)
+	UpdateState(StageDone, "", 0, tracker, bus)
 	fmt.Printf("\n📊 [PARALLEL EPIC RESULTS] %d total, %d dev failures, %d QA failures\n",
 		len(ep.SubTasks), len(devFailed), len(qaFailed))
+
+	// A module can fail dev and then QA; report each name once.
+	seen := make(map[string]bool, len(devFailed)+len(qaFailed))
+	var failed []string
+	for _, name := range append(append([]string{}, devFailed...), qaFailed...) {
+		if !seen[name] {
+			seen[name] = true
+			failed = append(failed, name)
+		}
+	}
+	return failed
 }
