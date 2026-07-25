@@ -182,6 +182,10 @@ remove-skill:
 run:
 	@go run main.go
 
+## monitor: tail the current run's event stream in this terminal (start in a second window)
+monitor:
+	@go run main.go monitor
+
 ## clean: wipe ephemeral telemetry logs and failure logs
 clean:
 	@echo "🧹 Cleaning up telemetry and failure logs..."

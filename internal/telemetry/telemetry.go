@@ -55,6 +55,18 @@ func (t *Tracker) AddTokens(prompt, eval int) {
 	t.data.TotalEvalTokens += eval
 }
 
+// Snapshot returns a copy of the metrics accumulated so far, safe to read while
+// the pipeline is still running. StagesExecuted is deep-copied so a caller
+// cannot alias the tracker's slice.
+func (t *Tracker) Snapshot() Telemetry {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	out := t.data
+	out.TotalDurationSeconds = time.Since(t.start).Seconds()
+	out.StagesExecuted = append([]string(nil), t.data.StagesExecuted...)
+	return out
+}
+
 // AddStage records a pipeline stage execution with timestamp.
 func (t *Tracker) AddStage(stageName string) {
 	t.mu.Lock()

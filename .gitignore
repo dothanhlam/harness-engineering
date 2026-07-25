@@ -1,2 +1,7 @@
 config.json
 .plan
+
+# Per-run event stream tailed by the monitor. Unlike state.json and
+# telemetry.json, which are small tracked snapshots, this is a high-volume log
+# (it mirrors every line of agent output) and is truncated on each run.
+workspace/events.jsonl

@@ -13,10 +13,15 @@
     "cmd_template": ["--print", "{prompt}", "--model", "{model}", "--dangerously-skip-permissions", "--add-dir", "./workspace", "--add-dir", "./memory"],
     "mcp_config": ""
   },
-  "dev": {
-    "_comment": "Dev agent: local llama_cpp.",
+  "_dev_14b_backup": {
+    "_comment": "INACTIVE — Qwen2.5-Coder-14B. 8.4GB weights + ~3GB KV at 16k context exceeds the ~10.6GB GPU wired limit on a 16GB Mac and will freeze the machine. Only restore on a 32GB+ host, or pair it with context_window <= 4096.",
     "agent": "llama_cpp",
     "model_name": "hf://bartowski/Qwen2.5-Coder-14B-Instruct-GGUF:Q4_K_M"
+  },
+  "dev": {
+    "_comment": "Dev agent: local llama_cpp. 7B (~4.7GB) + ~0.9GB KV at 16k context fits a 16GB host with headroom.",
+    "agent": "llama_cpp",
+    "model_name": "hf://bartowski/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M"
   },
   "devops": {
     "_comment": "DevOps agent: local llama_cpp.",

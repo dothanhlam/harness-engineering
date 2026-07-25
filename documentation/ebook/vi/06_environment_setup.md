@@ -1,49 +1,51 @@
 # Chương 6: Thiết lập Môi trường & Công cụ
 
-Để chạy pipeline Kỹ thuật Harness thành công trên máy cục bộ của bạn, bạn cần cài đặt và cấu hình nền tảng công cụ cần thiết. Orchestrator (`main.go`) đóng vai trò là người nhạc trưởng, nhưng nó dựa vào các công cụ CLI bên ngoài này để thực hiện những công việc nặng nhọc.
+Để chạy pipeline Kỹ thuật Harness thành công trên máy cục bộ của bạn, bạn cần cài đặt và cấu hình nền tảng công cụ cần thiết. Orchestrator (`main.go` + `internal/`) đóng vai trò là người nhạc trưởng, nhưng nó dựa vào runtime `llama.cpp` để thực hiện những công việc nặng nhọc.
 
 ## 1. Go (Golang)
-Orchestrator và các module mã được tạo ra đều được viết bằng ngôn ngữ Go. Bạn sẽ cần **Go 1.21 trở lên**.
-* **Mac/Linux**: 
+Orchestrator và các module mã được tạo ra đều được viết bằng ngôn ngữ Go. Bạn sẽ cần **Go 1.26 trở lên** (xem `go.mod`).
+* **Mac/Linux**:
   ```bash
   brew install go
   ```
 * **Windows/Khác**: Tải xuống trình cài đặt từ [trang web chính thức của Go](https://go.dev/dl/).
 
-## 2. BA Agent: Gemini CLI
-Chúng ta sử dụng công cụ dòng lệnh `gemini` làm Nhà Phân tích Nghiệp vụ (Giai đoạn 0). Nó chịu trách nhiệm phân rã các tác vụ thô thành các danh sách kiểm tra nghiêm ngặt có trong tệp `definitions_of_done.md`.
-* Đảm bảo bạn đã cài đặt và xác thực Gemini CLI trên máy của mình để các lệnh `gemini run` chạy liền mạch.
-
-## 3. Developer Agent: Antigravity (`agy`)
-Developer Agent (Giai đoạn 1) được hỗ trợ bởi CLI `agy` (Antigravity). Đây là một agent tự trị đọc các hệ thống gợi ý (system prompts) của chúng ta và viết mã vào bên trong thư mục `workspace/`.
-* Cài đặt CLI `agy` theo các công cụ nội bộ của tổ chức bạn.
-* Orchestrator tự động truyền cờ `--dangerously-skip-permissions` để cho phép `agy` chạy tự động mà không cần tạm dừng để xin quyền ghi tệp, tuy nhiên, nó vẫn bị giới hạn nghiêm ngặt (sandboxed) trong thư mục `workspace/` thông qua các cờ `--add-dir`.
-
-## 4. DevOps Agent: Ollama
-Đối với Giai đoạn 3 (Tạo Ghi chú Phát hành và Nén Bộ nhớ), chúng ta sử dụng các LLM cục bộ để tiết kiệm chi phí cho các API đám mây và đảm bảo sự riêng tư hoàn toàn cho mã nguồn của chúng ta.
-* Tải xuống và cài đặt **Ollama** từ [ollama.com](https://ollama.com/).
-* Khi đã cài đặt, hãy kéo (pull) mô hình mà chúng ta sử dụng để tạo tài liệu (được cấu hình trong `harness_config.json`):
+## 2. Runtime Suy luận: llama.cpp
+Cả ba agent (BA, Developer, DevOps) mặc định đều chạy cục bộ thông qua **llama.cpp**. Harness gọi binary `llama-completion`, vì vậy nó phải nằm trong `PATH` của bạn.
+* **Mac/Linux**:
   ```bash
-  ollama pull hermes3:8b
+  brew install llama.cpp
   ```
-* Hãy chắc chắn rằng máy chủ Ollama đang chạy ngầm trước khi bạn khởi động harness:
-  ```bash
-  ollama serve
-  ```
+* **Các nền tảng khác**: build từ mã nguồn theo [repository llama.cpp](https://github.com/ggml-org/llama.cpp).
 
-## 5. Quản lý Hộp cát (Sandbox) & Kỹ năng (Skills)
-Để giữ cho việc phát triển được tổ chức và duy trì các ngữ cảnh tác nhân mô-đun, pipeline hoạt động bên trong các thư mục cô lập (`workspace/`, `memory/`, `.agents/skills/`).
+Chạy cục bộ đồng nghĩa với không tốn chi phí API đám mây và đảm bảo sự riêng tư hoàn toàn cho mã nguồn của chúng ta.
+
+## 3. Models (tự động tải xuống từ Hugging Face)
+llama.cpp tự động tải xuống và lưu vào bộ nhớ đệm các model GGUF từ Hugging Face Hub bằng cách sử dụng tiền tố `hf://` — bạn không cần phải tải chúng thủ công. Các model được lưu trữ trong `~/.cache/huggingface/hub`.
+
+Các mặc định trong `harness_config.json` là:
+```json
+"ba":     { "agent": "llama_cpp", "model_name": "hf://NousResearch/Hermes-3-Llama-3.1-8B-GGUF:Q4_K_M" },
+"dev":    { "agent": "llama_cpp", "model_name": "hf://bartowski/Qwen2.5-Coder-14B-Instruct-GGUF:Q4_K_M" },
+"devops": { "agent": "llama_cpp", "model_name": "hf://NousResearch/Hermes-3-Llama-3.1-8B-GGUF:Q4_K_M" }
+```
+Lần chạy đầu tiên của mỗi model sẽ tải nó xuống (việc này có thể mất một lúc); các lần chạy tiếp theo sử dụng bộ nhớ đệm. Bạn cũng có thể trỏ `model_name` tới đường dẫn của một tệp `.gguf` cục bộ thay vì một URL `hf://`.
+
+*Tùy chọn — hoán đổi vào một CLI agent trên đám mây.* Nếu bạn muốn sử dụng một CLI agent như Claude cho một giai đoạn, hãy sao chép khối `_dev_claude_backup` không hoạt động trong `harness_config.json` đè lên khóa tương ứng và đảm bảo rằng CLI đó đã được cài đặt và xác thực. Các tích hợp MCP trong `.mcp/` (Notion, Linear) chỉ áp dụng cho các CLI agent như vậy.
+
+## 4. Quản lý Hộp cát (Sandbox) & Kỹ năng (Skills)
+Để giữ cho việc phát triển được tổ chức và duy trì các ngữ cảnh agent dạng module, pipeline hoạt động bên trong các thư mục cô lập (`workspace/`, `memory/`, `.agents/`).
 
 Bạn có thể khởi tạo các thư mục này và chuẩn bị bộ công cụ kỹ năng cục bộ của mình bằng cách sử dụng Makefile của Harness:
 
 ### Khởi tạo Hộp cát
-Đầu tiên, chạy lệnh khởi tạo để tạo các thư mục cần thiết và khởi tạo tệp cấu hình cơ bản (baseline configuration):
+Đầu tiên, chạy lệnh khởi tạo để tạo các thư mục cần thiết và khởi tạo một tệp cấu hình cơ bản (baseline config):
 ```bash
 make init
 ```
 
 ### Cung cấp Kỹ năng Tương tác
-Tiếp theo, chạy trình cài đặt tương tác để chọn những kỹ năng tên miền chuyên gia từ danh mục awesome-skills để tải vào:
+Tiếp theo, chạy trình cài đặt tương tác để chọn những kỹ năng tên miền chuyên gia để tải vào:
 ```bash
 make skills
 ```
@@ -58,10 +60,10 @@ make list-skills
 make remove-skill SKILL=<tên-thư-mục-kỹ-năng>
 ```
 
-## 6. Xác minh Cài đặt
-Khi bạn đã cấu hình xong môi trường và cung cấp các kỹ năng cần thiết, bạn có thể xác minh toàn bộ thiết lập:
+## 5. Xác minh Cài đặt
+Khi môi trường đã được cấu hình, hãy xác minh toàn bộ thiết lập bằng một tác vụ đơn giản:
 ```bash
-make run -- -task "Tạo một module hello world đơn giản"
+go run main.go run -task "Create a simple hello world module"
 ```
 
-Nếu pipeline chạy thành công qua BA -> DEV -> QA (Audit & Tests) -> HITL -> DEVOPS -> MEMORY COMPACT mà không báo bất kỳ lỗi "command not found" nào, thì môi trường của bạn đã được định cấu hình hoàn hảo!
+Nếu pipeline chạy thành công qua BA → DEV_CODING → QA_TESTING → HUMAN_IN_THE_LOOP → DEVOPS_DELIVER → MEMORY_COMPACTION → COMPLETED mà không báo bất kỳ lỗi "command not found" nào, thì môi trường của bạn đã được cấu hình hoàn hảo!
